@@ -52,8 +52,13 @@ class _NativeEventFilter(QAbstractNativeEventFilter):
 
     def nativeEventFilter(self, event_type, message):  # noqa: N802 - Qt API name
         if event_type in (b"windows_generic_MSG", b"windows_dispatcher_MSG", "windows_generic_MSG", "windows_dispatcher_MSG"):
-            self._monitor.handle_native_message(message)
-        return False
+            try:
+                handled = self._monitor.handle_native_message(message)
+            except Exception:
+                log.exception("Could not process a Windows native message")
+                handled = False
+            return handled, 0
+        return False, 0
 
 
 class WindowsEnvironmentMonitor:
@@ -135,6 +140,12 @@ class WindowsEnvironmentMonitor:
         """Handle a Qt MSG pointer or a test message object."""
         if not self._running:
             return False
+        if isinstance(message, int):
+            if not message:
+                return False
+            message = ctypes.cast(
+                message, ctypes.POINTER(wintypes.MSG)
+            ).contents
         try:
             message_id = int(message.message)
             wparam = int(message.wParam)

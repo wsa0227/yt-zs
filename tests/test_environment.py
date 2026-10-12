@@ -1,15 +1,23 @@
 import sqlite3
 import unittest
+from ctypes import addressof, wintypes
 
 from rehab_assistant.adapters.windows.environment import (
     ManualEnvironmentMonitor,
     WindowsEnvironmentMonitor,
+    _NativeEventFilter,
 )
 from rehab_assistant.services.posture_service import PostureService
 from rehab_assistant.storage.database import migrate
 
+from PySide6.QtWidgets import QApplication, QWidget
+
 
 class EnvironmentAdapterTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.application = QApplication.instance() or QApplication([])
+
     def test_manual_monitor_has_start_emit_close_lifecycle(self):
         monitor = ManualEnvironmentMonitor()
         events = []
@@ -80,6 +88,48 @@ class EnvironmentAdapterTests(unittest.TestCase):
             ["session_locked", "sleep_started", "resume"],
             [event[0] for event in events],
         )
+
+    def test_windows_monitor_decodes_qt_msg_pointer(self):
+        monitor = WindowsEnvironmentMonitor()
+        events = []
+        monitor.start(lambda event_type, payload: events.append((event_type, payload)))
+        message = wintypes.MSG()
+        message.message = monitor.WM_WTSSESSION_CHANGE
+        message.wParam = monitor.WTS_SESSION_LOCK
+        message.lParam = 9
+
+        self.assertTrue(monitor.handle_native_message(addressof(message)))
+        self.assertEqual("session_locked", events[0][0])
+        self.assertEqual(9, events[0][1]["session_id"])
+        monitor.close()
+
+    def test_native_event_filter_returns_qt_result_tuple(self):
+        monitor = WindowsEnvironmentMonitor()
+        monitor.start(lambda *_event: None)
+        event_filter = _NativeEventFilter(monitor)
+        message = wintypes.MSG()
+        message.message = monitor.WM_POWERBROADCAST
+        message.wParam = monitor.PBT_APMSUSPEND
+
+        self.assertEqual(
+            (True, 0),
+            event_filter.nativeEventFilter(b"windows_generic_MSG", addressof(message)),
+        )
+        self.assertEqual(
+            (False, 0),
+            event_filter.nativeEventFilter(b"other", addressof(message)),
+        )
+        monitor.close()
+
+    def test_windows_monitor_starts_with_a_qt_window(self):
+        window = QWidget()
+        window.show()
+        monitor = WindowsEnvironmentMonitor(window)
+        try:
+            monitor.start(lambda *_event: None)
+        finally:
+            monitor.close()
+            window.close()
 
 
 if __name__ == "__main__":

@@ -208,8 +208,7 @@ def main() -> int:
     app.setQuitOnLastWindowClosed(False)
 
     directory = data_directory()
-    configure_logging(directory)
-    log = logging.getLogger(__name__)
+    directory.mkdir(parents=True, exist_ok=True)
 
     lock = QLockFile(str(directory / "app.lock"))
     lock.setStaleLockTime(0)
@@ -218,13 +217,16 @@ def main() -> int:
         return 0
 
     try:
+        configure_logging(directory)
+        log = logging.getLogger(__name__)
         database = open_database(directory / "assistant.sqlite3")
         posture = PostureService(database)
     except Exception:
-        log.exception("Database initialization failed")
+        logging.getLogger(__name__).exception("Application initialization failed")
         if "database" in locals():
             database.close()
         lock.unlock()
+        logging.shutdown()
         return 1
 
     tray_available = QSystemTrayIcon.isSystemTrayAvailable()
@@ -311,4 +313,5 @@ def main() -> int:
         posture.close()
         database.close()
         lock.unlock()
+        logging.shutdown()
     return result
