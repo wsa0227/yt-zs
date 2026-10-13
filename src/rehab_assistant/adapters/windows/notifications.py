@@ -14,7 +14,7 @@ class TrayNotificationChannel:
         self._tray = tray
 
     def notify(self, reminder: Reminder) -> None:
-        if reminder.threshold_minutes >= 40:
+        if reminder.threshold_minutes >= 2:
             title = "坐姿已达到 40 分钟"
             body = "请尽快改变姿势或起身活动；提醒仍需由你确认。"
             icon = QSystemTrayIcon.MessageIcon.Warning
