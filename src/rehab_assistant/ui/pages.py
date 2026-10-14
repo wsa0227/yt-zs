@@ -16,6 +16,7 @@ from rehab_assistant.domain.exercises import ExerciseRecord, SYMPTOM_CHANGES
 from rehab_assistant.domain.symptoms import SymptomRecord
 from rehab_assistant.domain.statistics import DailyStatistics
 from rehab_assistant.safety.symptom_rules import evaluate_symptoms
+from rehab_assistant.services.settings_service import SettingsService
 from .components import card, label
 from .theme import COLORS
 from .widgets import Illustration, icon
@@ -1035,9 +1036,9 @@ def add_preview(layout, title, kind, window):
     return button
 
 
-def settings_page(window):
+def settings_page(window, settings_service=None):
     page = DesignPage("设置", "本地运行、开机常驻与提醒偏好；可用项和待实现项分开。", "Phase 4D：完整设置，")
-    page.status.setText("托盘与登录启动已有适配器 · 其余偏好 / 数据管理待实现")
+    page.status.setText("托盘与登录启动已有适配器 · 提醒偏好已接入 · 数据管理待实现")
     local = page.section("本地运行 · 保护隐私")
     local.addWidget(label("核心数据保存在本机，不默认上传健康数据、不启用遥测。", role="muted"))
     row = page.row(local)
@@ -1057,12 +1058,69 @@ def settings_page(window):
     row = page.row(reminder)
     add_preview(row, "35 分钟提醒预览", "warning", window)
     add_preview(row, "40 分钟提醒预览", "limit", window)
-    for title in ("提醒声音（待实现）", "重复提醒（待实现）"):
-        check = QCheckBox(title)
+    page.reminder_sound_check = QCheckBox("启用提醒声音偏好")
+    page.reminder_followups_check = QCheckBox("启用 40 分钟后的重复提醒")
+    for check in (page.reminder_sound_check, page.reminder_followups_check):
         check.setMinimumHeight(44)
-        check.setEnabled(False)
         reminder.addWidget(check)
-    reminder.addWidget(label("禁用控件不是当前配置；本轮不调整已实现的提醒规则。", role="muted"))
+    page.reminder_status = label(role="muted")
+    reminder.addWidget(page.reminder_status)
+
+    page._settings_updating = False
+    if settings_service is None:
+        for check in (page.reminder_sound_check, page.reminder_followups_check):
+            check.setEnabled(False)
+        page.reminder_status.setText("提醒偏好服务未绑定；当前窗口仅用于设计预览")
+    else:
+        preferences = settings_service.reminder_preferences()
+        page.reminder_sound_check.setChecked(preferences.sound_enabled)
+        page.reminder_followups_check.setChecked(preferences.followups_enabled)
+        page.reminder_status.setText(
+            "偏好已保存；声音开关将在通知通道支持静音控制后生效。"
+        )
+
+        def update_sound(enabled):
+            if page._settings_updating:
+                return
+            try:
+                settings_service.set_reminder_sound_enabled(enabled)
+            except Exception:
+                logging.getLogger(__name__).exception("Could not save reminder sound setting")
+                page._settings_updating = True
+                page.reminder_sound_check.setChecked(
+                    settings_service.reminder_preferences().sound_enabled
+                )
+                page._settings_updating = False
+                page.reminder_status.setText("声音偏好未保存；已恢复实际配置，请检查本机日志")
+            else:
+                page.reminder_status.setText(
+                    "声音偏好已保存；当前通知通道尚不支持静音控制。"
+                    if not enabled else
+                    "声音偏好已保存；当前通知通道使用系统默认声音。"
+                )
+
+        def update_followups(enabled):
+            if page._settings_updating:
+                return
+            try:
+                settings_service.set_reminder_followups_enabled(enabled)
+            except Exception:
+                logging.getLogger(__name__).exception("Could not save reminder follow-up setting")
+                page._settings_updating = True
+                page.reminder_followups_check.setChecked(
+                    settings_service.reminder_preferences().followups_enabled
+                )
+                page._settings_updating = False
+                page.reminder_status.setText("重复提醒偏好未保存；已恢复实际配置，请检查本机日志")
+            else:
+                page.reminder_status.setText(
+                    "重复提醒已开启；40 分钟后最多重复 3 次。"
+                    if enabled else
+                    "重复提醒已关闭；35 分钟和 40 分钟首次提醒仍保留。"
+                )
+
+        page.reminder_sound_check.toggled.connect(update_sound)
+        page.reminder_followups_check.toggled.connect(update_followups)
     startup_preview = page.section("启动与恢复确认")
     add_preview(startup_preview, "查看开机启动询问样式", "startup", window)
     startup_preview.addWidget(label("实际启动和恢复核实仍在首页状态卡完成；独立弹窗只提供设计预览。", role="muted"))
@@ -1093,6 +1151,7 @@ def help_page(window):
     return page
 
 
-def build_pages(window, symptom_service=None, training_service=None, statistics_service=None):
+def build_pages(window, symptom_service=None, training_service=None, statistics_service=None,
+                settings_service: SettingsService | None = None):
     return {"record": symptoms_page(symptom_service), "training": training_page(training_service), "chart": statistics_page(statistics_service),
-            "settings": settings_page(window), "info": help_page(window)}
+            "settings": settings_page(window, settings_service), "info": help_page(window)}

@@ -215,3 +215,11 @@ Phase 1 暂用默认：显示名“宇安”、slogan“予慧宇，一份日常
 - 统计页接入最近 7 天 / 30 天切换、坐姿时长 / 症状变化 / 起身次数三个 Tab、原生 Qt 图表和摘要；首页今日坐姿时长与起身次数读取同一统计 service。空数据库和读取失败均显示明确状态，不生成演示数据。
 - 新增 5 个统计 service 测试和 3 个统计 UI 测试，覆盖跨午夜、未知区间、未闭合区间、缺失值、范围切换、空状态和无写入刷新。本轮全量测试 `python -m unittest discover -s tests -p '*.py' -v` 为 108/108 通过；`compileall` 与 `git diff --check` 通过。
 - Phase 4D 的提醒偏好、恢复询问、更正 UI 和备份管理，以及 Phase 5 的真实 Windows 事件 / 故障恢复和 Phase 6 的安装交付仍未完成。
+
+## 20. Phase 4D 提醒偏好基础（2026-10-14）
+
+- 新增 `services.settings_service.SettingsService`，使用现有 `app_settings` 表保存并严格校验 `reminder_sound_enabled`、`reminder_followups_enabled` 两个布尔偏好；缺失或非法 JSON 使用明确默认值，不把字符串或数字强制转换成布尔值。
+- 设置页和 `ReminderService` 注入同一个设置服务实例。关闭后续提醒时，35 分钟提醒和 40 分钟首次提醒仍投递，40 分钟后的 `sequence_no > 0` 后续提醒持久化为 `suppressed`，重新开启不会补发已抑制记录。
+- “提醒声音”目前只完成偏好持久化和准确状态提示；现有 Qt `QSystemTrayIcon.showMessage` 通道没有静音参数，因此关闭该偏好不会被描述为已经静音，也不会伪造底层通知能力。
+- 新增设置 service、重启读取、非法值、提醒过滤、已投递提醒保留和设置页持久化测试。本轮全量自动化测试 `python -m unittest discover -s tests -p '*.py'` 为 117/117 通过；`compileall` 和 `git diff --check` 通过。
+- 启动 / 恢复询问、更正 UI、备份 / 恢复 / 删除管理、真实 Windows 通知声音控制和 Phase 5 / 6 仍未完成。本阶段没有进行真实锁屏、休眠、通知抑制或安装包验收。

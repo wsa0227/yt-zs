@@ -51,6 +51,7 @@ class MainWindow(QMainWindow):
         symptom_service=None,
         training_service=None,
         statistics_service=None,
+        settings_service=None,
     ) -> None:
         super().__init__()
         self._tray, self._posture = tray, posture
@@ -58,6 +59,7 @@ class MainWindow(QMainWindow):
         self._symptom_service = symptom_service
         self._training_service = training_service
         self._statistics_service = statistics_service
+        self._settings_service = settings_service
         self._rendered_posture = None
         self._rendered_reminders = None
         self._allow_exit = False
@@ -233,6 +235,7 @@ class MainWindow(QMainWindow):
             symptom_service=self._symptom_service,
             training_service=self._training_service,
             statistics_service=self._statistics_service,
+            settings_service=self._settings_service,
         ))
         for key, content in self._pages.items():
             if key != "home":

@@ -19,6 +19,7 @@ from rehab_assistant.adapters.windows.notifications import TrayNotificationChann
 from rehab_assistant.storage.database import open_database
 from rehab_assistant.services.posture_service import PostureService
 from rehab_assistant.services.reminder_service import ReminderService
+from rehab_assistant.services.settings_service import SettingsService
 from rehab_assistant.services.symptom_service import SymptomService
 from rehab_assistant.services.exercise_service import ExerciseService
 from rehab_assistant.services.statistics_service import StatisticsService
@@ -115,6 +116,7 @@ def main() -> int:
         symptoms = SymptomService(database)
         exercises = ExerciseService(database)
         statistics = StatisticsService(database)
+        settings = SettingsService(database)
     except Exception as error:
         print(f"应用初始化失败：{error}；数据目录：{directory}", file=sys.stderr)
         logging.getLogger(__name__).exception("Application initialization failed")
@@ -128,9 +130,12 @@ def main() -> int:
     app.setQuitOnLastWindowClosed(not tray_available)
     tray = QSystemTrayIcon(brand_icon(), app)
     tray.setToolTip(APP_NAME)
-    reminders = ReminderService(database, posture, TrayNotificationChannel(tray))
+    reminders = ReminderService(database, posture, TrayNotificationChannel(tray), settings=settings)
     environment = WindowsEnvironmentMonitor()
-    window = MainWindow(tray, posture, reminders, environment, symptoms, exercises, statistics)
+    window = MainWindow(
+        tray, posture, reminders, environment, symptoms, exercises, statistics,
+        settings_service=settings,
+    )
     environment._window = window
     environment.start(
         lambda event_type, payload: posture.observe_environment(event_type, payload)

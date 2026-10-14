@@ -15,6 +15,7 @@ from rehab_assistant.ui.tray_menu import build_tray_menu
 from rehab_assistant.services.posture_service import PostureService
 from rehab_assistant.services.reminder_service import ReminderService
 from rehab_assistant.services.statistics_service import StatisticsService
+from rehab_assistant.services.settings_service import SettingsService
 from rehab_assistant.storage.database import migrate
 from test_ui import FakeClock, SilentChannel
 
@@ -31,12 +32,14 @@ class DesignBoardCoverageTests(unittest.TestCase):
         self.posture = PostureService(self.connection, self.clock)
         self.reminders = ReminderService(self.connection, self.posture, SilentChannel(), clock=self.clock)
         self.statistics = StatisticsService(self.connection, clock=self.clock)
+        self.settings = SettingsService(self.connection)
         self.tray = QSystemTrayIcon()
         self.window = MainWindow(
             self.tray,
             self.posture,
             self.reminders,
             statistics_service=self.statistics,
+            settings_service=self.settings,
         )
         self.window._refresh_timer.stop()
         self.window.show()
@@ -244,6 +247,33 @@ class DesignBoardCoverageTests(unittest.TestCase):
         actions["startup"].trigger()
         self.assertFalse(check.isChecked())
         self.assertEqual(2, provider.set_enabled.call_count)
+
+    def test_reminder_preferences_are_enabled_and_persisted(self):
+        page = self.window._pages["settings"]
+        self.assertTrue(page.reminder_sound_check.isEnabled())
+        self.assertTrue(page.reminder_followups_check.isEnabled())
+        self.assertTrue(page.reminder_sound_check.isChecked())
+        self.assertTrue(page.reminder_followups_check.isChecked())
+
+        page.reminder_followups_check.setChecked(False)
+
+        self.assertFalse(self.settings.reminder_preferences().followups_enabled)
+        self.assertIn("35 分钟和 40 分钟首次提醒仍保留", page.reminder_status.text())
+
+    def test_failed_reminder_preference_write_restores_actual_value(self):
+        class FailingSettings:
+            def reminder_preferences(self):
+                return type("Preferences", (), {"sound_enabled": True, "followups_enabled": True})()
+
+            def set_reminder_followups_enabled(self, enabled):
+                raise OSError("database is read-only")
+
+        from rehab_assistant.ui.pages import settings_page
+        page = settings_page(self.window, FailingSettings())
+        page.reminder_followups_check.setChecked(False)
+
+        self.assertTrue(page.reminder_followups_check.isChecked())
+        self.assertIn("未保存", page.reminder_status.text())
 
     def test_failed_startup_write_restores_actual_state_without_success_message(self):
         _, actions, provider, _ = self.menu()

@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Protocol
 
 from rehab_assistant.services.posture_service import PostureService
+from rehab_assistant.services.settings_service import SettingsService
 
 
 class NotificationChannel(Protocol):
@@ -65,6 +66,7 @@ class ReminderService:
         clock: ReminderClock | None = None,
         retry_interval_seconds: int = 30,
         channel_name: str = "windows_tray",
+        settings: SettingsService | None = None,
     ) -> None:
         self._connection = connection
         self._posture = posture
@@ -72,11 +74,13 @@ class ReminderService:
         self._clock = clock or SystemReminderClock()
         self._retry_interval = max(0, retry_interval_seconds)
         self._channel_name = channel_name
+        self._settings = settings
 
     def evaluate_and_deliver(self) -> tuple[ReminderResult, ...]:
         """Create due rows, then deliver due and retryable pending rows."""
         self._posture.evaluate_reminders()
         self._materialize_due_events()
+        self._suppress_disabled_followups()
         results: list[ReminderResult] = []
         for reminder in self.pending_reminders(retryable_only=True):
             self._record_attempt(reminder.id)
@@ -110,6 +114,8 @@ class ReminderService:
                 "OR last_attempt_at_utc <= ?)"
             )
             parameters.append(cutoff.isoformat(timespec="milliseconds"))
+        if retryable_only and not self._followups_enabled():
+            clauses.append("sequence_no = 0")
         rows = self._connection.execute(
             "SELECT id, session_id, threshold_minutes, sequence_no, "
             "scheduled_at_utc, status, channel, attempt_count, last_error, seen_at_utc "
@@ -145,10 +151,25 @@ class ReminderService:
                         int(payload["threshold_minutes"]),
                         int(payload.get("sequence_no", 0)),
                         event["occurred_at_utc"],
-                        "pending",
+                        "pending" if self._should_deliver(payload) else "suppressed",
                         self._channel_name,
                     ),
                 )
+
+    def _suppress_disabled_followups(self) -> None:
+        if self._followups_enabled():
+            return
+        with self._connection:
+            self._connection.execute(
+                "UPDATE reminder_deliveries SET status='suppressed', last_error=NULL "
+                "WHERE status='pending' AND sequence_no > 0"
+            )
+
+    def _followups_enabled(self) -> bool:
+        return self._settings is None or self._settings.reminder_preferences().followups_enabled
+
+    def _should_deliver(self, payload: dict) -> bool:
+        return int(payload.get("sequence_no", 0)) == 0 or self._followups_enabled()
 
     def _record_attempt(self, delivery_id: int) -> None:
         with self._connection:
