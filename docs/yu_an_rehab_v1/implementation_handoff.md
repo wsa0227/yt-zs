@@ -10,7 +10,7 @@
 
 ## 2. 导入与状态
 
-catalogue.json是内容交接格式，尚未通过当前应用导入验收。首次启动保持空目录。用户主动导入后只能出现CANDIDATE，不能生成APPROVED、有效计划或提醒。所有patient_prescription、individual_approval_id为空。
+catalogue.json已接入当前应用的用户主动导入流程。首次启动保持空目录。用户主动导入后只能出现CANDIDATE，不能生成APPROVED、有效计划或提醒；重复导入按catalog_id跳过，非法结构和批量写入失败不会留下部分记录。所有patient_prescription、individual_approval_id为空。该验收不等于医学审核或 Windows 实机验收。
 
 来源核对、中文医学文案审核、媒体动作匹配、个人许可、媒体使用权分开存储，不能用一个verified布尔值代替。
 

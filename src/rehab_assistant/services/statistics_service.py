@@ -178,10 +178,10 @@ class StatisticsService:
                 if unknown_start is None and active_start is not None:
                     close_active(at)
                     unknown_start = at
-            elif kind == "reconcile_unknown":
+            elif kind in ("reconcile_unknown", "confirm_unknown"):
                 close_active(at)
                 close_unknown(at)
-            elif kind == "confirm_up":
+            elif kind in ("confirm_up", "reconcile_up"):
                 close_active(at)
                 close_unknown(at)
             elif kind in ("pause", "resume_needs_confirmation"):

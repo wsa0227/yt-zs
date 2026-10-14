@@ -10,7 +10,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QBoxLayout, QLabel, QPushButton, QScrollArea, QSystemTrayIcon
+from PySide6.QtWidgets import QApplication, QBoxLayout, QDialog, QLabel, QPushButton, QScrollArea, QSystemTrayIcon
 
 from rehab_assistant import APP_NAME, APP_SLOGAN
 from rehab_assistant.app import MainWindow
@@ -288,6 +288,35 @@ class MainWindowDesignTests(unittest.TestCase):
         self.assertIn("推算", self.window._countdown.text())
         self.assertIn("推算", self.window._track.accessibleName())
         self.assertIn("推算", self.window._next_hint.text())
+
+    def test_startup_confirmation_dialog_starts_only_after_explicit_choice(self):
+        self.window.prompt_startup_confirmation()
+        self.application.processEvents()
+        dialog = self.window.findChild(QDialog, "recoveryDialog")
+        self.assertIsNotNone(dialog)
+        buttons = dialog.findChildren(QPushButton)
+        self.assertEqual(["现在坐着", "现在已起身", "无法确认"], [button.text() for button in buttons])
+        self.assertEqual("UNKNOWN", self.posture.state.posture)
+        buttons[0].click()
+        self.application.processEvents()
+        self.assertEqual("SITTING", self.posture.state.posture)
+        self.assertIsNone(self.window.findChild(QDialog, "recoveryDialog"))
+
+    def test_recovery_confirmation_dialog_keeps_unknown_gap_until_user_choice(self):
+        self.posture.confirm_sitting()
+        self.clock.advance(600)
+        self.posture.observe_environment("sleep_started")
+        self.window.prompt_startup_confirmation()
+        self.application.processEvents()
+        dialog = self.window.findChild(QDialog, "recoveryDialog")
+        self.assertIsNotNone(dialog)
+        buttons = dialog.findChildren(QPushButton)
+        self.assertEqual(["一直坐着（自述）", "现在已起身", "无法确认"], [button.text() for button in buttons])
+        self.assertEqual("NEEDS_CONFIRMATION", self.posture.state.posture)
+        buttons[1].click()
+        self.application.processEvents()
+        self.assertEqual("UP", self.posture.state.posture)
+        self.assertIsNone(self.posture.elapsed_seconds())
 
     def test_session_start_is_displayed_in_local_time_not_fixture_text(self):
         self.assertIn("尚无已确认", self.window._started_at.text())

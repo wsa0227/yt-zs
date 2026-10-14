@@ -54,6 +54,10 @@ def apply_event(state: PostureState, event_type: str, at: str, payload: dict[str
         if state.posture not in ("UNKNOWN", "SITTING", "NEEDS_CONFIRMATION"):
             raise InvalidTransition(f"Cannot confirm standing from {state.posture}")
         return replace(state, posture="UP", session_id=None, sitting_since=None, uncertain=False)
+    if event_type == "confirm_unknown":
+        if state.posture not in ("UNKNOWN", "UP"):
+            raise InvalidTransition(f"Cannot leave posture unknown from {state.posture}")
+        return PostureState(posture="UNKNOWN", runtime_open=state.runtime_open)
     if event_type == "pause":
         if state.posture == "PAUSED":
             raise InvalidTransition("Tracking is already paused")
@@ -66,6 +70,10 @@ def apply_event(state: PostureState, event_type: str, at: str, payload: dict[str
         if state.posture != "NEEDS_CONFIRMATION":
             raise InvalidTransition("There is no interrupted sitting period to reconcile")
         return replace(state, posture="SITTING", uncertain=True)
+    if event_type == "reconcile_up":
+        if state.posture != "NEEDS_CONFIRMATION":
+            raise InvalidTransition("There is no interrupted period to reconcile")
+        return replace(state, posture="UP", session_id=None, sitting_since=None, uncertain=False)
     if event_type == "reconcile_unknown":
         if state.posture != "NEEDS_CONFIRMATION":
             raise InvalidTransition("There is no interrupted period to reconcile")

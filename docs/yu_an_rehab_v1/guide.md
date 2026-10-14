@@ -167,7 +167,7 @@ AAOS和NHS都有具体再使用范围限制。[S11][S12] 本包按“原站查�
 
 ## 十、文件使用
 
-双击resource_index.html查看来源目录；yu_an_review_forms.docx可打印或编辑；catalogue.json供开发适配候选内容；record_templates.json是空白数据模板；implementation_handoff.md记录增补建议与验收项。JSON尚未通过当前应用导入测试，不声称开箱即用。
+双击resource_index.html查看来源目录；yu_an_review_forms.docx可打印或编辑；catalogue.json可由应用的“导入资料包候选”入口导入为候选内容；record_templates.json是空白数据模板；implementation_handoff.md记录增补建议与验收项。导入测试已通过，但这不代表医学审核、远程媒体播放或 Windows 实机验收完成。
 
 ## 来源目录
 

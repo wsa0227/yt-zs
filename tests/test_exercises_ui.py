@@ -1,10 +1,12 @@
 import os
 import sqlite3
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtWidgets import QApplication, QLabel, QPushButton, QSystemTrayIcon
+from PySide6.QtWidgets import QApplication, QLabel, QMessageBox, QPushButton, QSystemTrayIcon
 
 from rehab_assistant.domain.exercises import ExerciseRecord
 from rehab_assistant.services.exercise_service import ExerciseService
@@ -111,6 +113,60 @@ class ExercisePageTests(unittest.TestCase):
         self.window.show_page("training")
         self.application.processEvents()
         self.assertEqual(0, self.window.centralWidget().horizontalScrollBar().maximum())
+
+    def test_catalogue_import_is_explicit_and_keeps_all_items_as_candidates(self):
+        page = self.window._pages["training"]
+        import_button = next(button for button in page.findChildren(QPushButton)
+                             if button.text() == "导入资料包候选")
+        path = str(Path(__file__).parents[1] / "docs" / "yu_an_rehab_v1" / "catalogue.json")
+        with patch(
+            "rehab_assistant.ui.pages.QFileDialog.getOpenFileName",
+            return_value=(path, "JSON 资料包 (*.json)"),
+        ), patch(
+            "rehab_assistant.ui.pages.QMessageBox.question",
+            return_value=QMessageBox.StandardButton.Yes,
+        ):
+            import_button.click()
+        self.application.processEvents()
+        self.assertEqual(10, len(self.service.list_exercises("CANDIDATE")))
+        self.assertEqual(0, len(self.service.list_executable()))
+        self.assertIn("已导入 10 项候选", "\n".join(item.text() for item in page.findChildren(QLabel)))
+
+    def test_training_log_history_is_read_only_and_shows_discomfort_context(self):
+        record = self.service.save_candidate(ExerciseRecord(
+            id=None,
+            name="专业人员确认的训练资料",
+            source_url="",
+            source_org="康复治疗师提供",
+            content="按专业人员提供的说明执行。",
+            contraindication_notes="出现不适立即停止。",
+            reviewer=None,
+            approved_at_utc=None,
+            status="CANDIDATE",
+            created_at_utc=None,
+            updated_at_utc=None,
+        ))
+        self.service.approve(record.id, "康复治疗师")
+        self.service.add_to_plan(record.id)
+        self.service.record_log(
+            record.id,
+            completed=True,
+            user_response="出现不适，已停止",
+            symptom_change="症状加重",
+            notes="已联系专业人员",
+        )
+
+        page = self.window._pages["training"]
+        page.refresh_training()
+        self.application.processEvents()
+        content = "\n".join(item.text() for item in page.findChildren(QLabel))
+
+        self.assertIn("训练记录", content)
+        self.assertIn("专业人员确认的训练资料", content)
+        self.assertIn("症状加重", content)
+        self.assertIn("出现不适，已停止", content)
+        self.assertIn("已联系专业人员", content)
+        self.assertNotIn("演示训练记录", content)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,8 @@
 import sqlite3
+import json
+import tempfile
 import unittest
+from pathlib import Path
 from datetime import datetime, timezone
 
 from rehab_assistant.domain.exercises import ExerciseRecord
@@ -114,6 +117,58 @@ class ExerciseServiceTests(unittest.TestCase):
         with self.assertRaises(sqlite3.IntegrityError):
             self.service.approve(record.id, "康复治疗师")
         self.assertEqual("CANDIDATE", self.service.get_by_id(record.id).status)
+
+    def test_catalogue_import_creates_candidates_and_is_idempotent(self):
+        path = Path(__file__).parents[1] / "docs" / "yu_an_rehab_v1" / "catalogue.json"
+        first = self.service.import_catalogue(path)
+        self.assertEqual((10, 0), (first.imported, first.skipped))
+        records = self.service.list_exercises("CANDIDATE")
+        self.assertEqual(10, len(records))
+        self.assertEqual(0, len(self.service.list_executable()))
+        self.assertEqual("YA-EX-001", records[-1].catalog_id)
+        self.assertEqual("CANDIDATE", records[-1].status)
+        self.assertGreater(len(records[-1].review_questions), 0)
+
+        second = self.service.import_catalogue(path)
+        self.assertEqual((0, 10), (second.imported, second.skipped))
+        self.assertEqual(10, len(self.service.list_exercises()))
+
+    def test_catalogue_import_rejects_invalid_shape_without_writing(self):
+        cases = (
+            {"sources": [], "exercises": [{"id": "X", "name_zh": "动作", "source_ids": "S01"}]},
+            {"sources": [], "exercises": [{"id": "X", "name_zh": "动作", "source_ids": ["S01"],
+                                               "review_questions": "请确认"}]},
+            {"sources": [{"id": "S01"}], "exercises": [{"id": "X", "name_zh": "动作",
+                                                            "source_ids": ["MISSING"]}]},
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            for index, payload in enumerate(cases):
+                path = Path(directory) / f"invalid-{index}.json"
+                path.write_text(json.dumps(payload), encoding="utf-8")
+                with self.assertRaises(ValueError):
+                    self.service.import_catalogue(path)
+        self.assertEqual((), self.service.list_exercises())
+
+    def test_catalogue_import_rolls_back_when_a_later_insert_fails(self):
+        payload = {
+            "sources": [{"id": "S01", "publisher": "专业资料", "url": "https://example.invalid"}],
+            "exercises": [
+                {"id": "X-001", "name_zh": "第一个候选", "source_ids": ["S01"]},
+                {"id": "X-002", "name_zh": "第二个候选", "source_ids": ["S01"]},
+            ],
+        }
+        self.connection.execute(
+            "CREATE TRIGGER fail_catalog_import BEFORE INSERT ON exercises "
+            "WHEN NEW.catalog_id = 'X-002' "
+            "BEGIN SELECT RAISE(ABORT, 'simulated catalogue failure'); END"
+        )
+        self.connection.commit()
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "catalogue.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaises(sqlite3.IntegrityError):
+                self.service.import_catalogue(path)
+        self.assertEqual((), self.service.list_exercises())
 
 
 if __name__ == "__main__":

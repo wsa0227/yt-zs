@@ -16,7 +16,9 @@ from rehab_assistant.services.posture_service import PostureService
 from rehab_assistant.services.reminder_service import ReminderService
 from rehab_assistant.services.statistics_service import StatisticsService
 from rehab_assistant.services.settings_service import SettingsService
+from rehab_assistant.services.data_management_service import DeletionSummary
 from rehab_assistant.storage.database import migrate
+from rehab_assistant.ui.pages import settings_page
 from test_ui import FakeClock, SilentChannel
 
 
@@ -259,6 +261,85 @@ class DesignBoardCoverageTests(unittest.TestCase):
 
         self.assertFalse(self.settings.reminder_preferences().followups_enabled)
         self.assertIn("35 分钟和 40 分钟首次提醒仍保留", page.reminder_status.text())
+
+    def test_data_management_controls_are_explicitly_disabled_when_unbound(self):
+        page = settings_page(self.window, self.settings, self.posture)
+        try:
+            self.assertFalse(page.backup_button.isEnabled())
+            self.assertFalse(page.restore_button.isEnabled())
+            self.assertFalse(page.delete_data_button.isEnabled())
+            self.assertIn("待接入", page.data_status.text())
+        finally:
+            page.deleteLater()
+            self.application.processEvents()
+
+    def test_data_management_backup_success_and_failure_feedback(self):
+        service = Mock()
+        page = settings_page(self.window, self.settings, self.posture, service)
+        try:
+            self.assertTrue(page.backup_button.isEnabled())
+            self.assertIn("本地数据管理已接入", page.status.text())
+            with patch(
+                "rehab_assistant.ui.pages.QFileDialog.getSaveFileName",
+                return_value=("C:/temp/yu-an.sqlite3", "SQLite 数据库 (*.sqlite3)"),
+            ):
+                page.backup_button.click()
+            service.backup_to.assert_called_once_with("C:/temp/yu-an.sqlite3")
+            self.assertIn("已完成本地数据备份", page.data_status.text())
+
+            service.reset_mock()
+            service.backup_to.side_effect = OSError("disk full")
+            with patch(
+                "rehab_assistant.ui.pages.QFileDialog.getSaveFileName",
+                return_value=("C:/temp/yu-an.sqlite3", "SQLite 数据库 (*.sqlite3)"),
+            ):
+                page.backup_button.click()
+            self.assertIn("备份失败", page.data_status.text())
+            self.assertNotIn("已完成本地数据备份", page.data_status.text())
+        finally:
+            page.deleteLater()
+            self.application.processEvents()
+
+    def test_restore_and_delete_require_confirmation_and_report_failures(self):
+        service = Mock()
+        service.delete_health_records.return_value = DeletionSummary(1, 2, 1, 1, 3, 1, 2)
+        page = settings_page(self.window, self.settings, self.posture, service)
+        try:
+            with patch(
+                "rehab_assistant.ui.pages.QFileDialog.getOpenFileName",
+                return_value=("C:/temp/source.sqlite3", "SQLite 数据库 (*.sqlite3)"),
+            ), patch(
+                "rehab_assistant.ui.pages.QMessageBox.question",
+                return_value=QMessageBox.StandardButton.No,
+            ) as question:
+                page.restore_button.click()
+                page.delete_data_button.click()
+            self.assertEqual(2, question.call_count)
+            service.restore_from.assert_not_called()
+            service.delete_health_records.assert_not_called()
+
+            with patch(
+                "rehab_assistant.ui.pages.QFileDialog.getOpenFileName",
+                return_value=("C:/temp/source.sqlite3", "SQLite 数据库 (*.sqlite3)"),
+            ), patch(
+                "rehab_assistant.ui.pages.QMessageBox.question",
+                return_value=QMessageBox.StandardButton.Yes,
+            ):
+                page.restore_button.click()
+            service.restore_from.assert_called_once_with("C:/temp/source.sqlite3")
+            self.assertIn("姿势状态已进入待确认流程", page.data_status.text())
+
+            service.delete_health_records.side_effect = OSError("read-only")
+            with patch(
+                "rehab_assistant.ui.pages.QMessageBox.question",
+                return_value=QMessageBox.StandardButton.Yes,
+            ):
+                page.delete_data_button.click()
+            self.assertIn("删除失败", page.data_status.text())
+            self.assertNotIn("已删除本地健康记录", page.data_status.text())
+        finally:
+            page.deleteLater()
+            self.application.processEvents()
 
     def test_failed_reminder_preference_write_restores_actual_value(self):
         class FailingSettings:

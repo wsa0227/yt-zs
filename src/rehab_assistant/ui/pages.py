@@ -1,6 +1,6 @@
 """Design-board page skeletons. No health persistence or training execution here."""
 import logging
-from datetime import date
+from datetime import date, datetime
 
 from PySide6.QtCore import QDate, QSize, Qt
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen
@@ -685,6 +685,14 @@ def training_page(training_service=None):
     add_button.setEnabled(training_service is not None)
     add_button.setToolTip("录入已有的专业资料；不会自动推荐或排程")
     library.addWidget(add_button)
+    import_button = QPushButton("导入资料包候选")
+    import_button.setMinimumHeight(44)
+    import_button.setEnabled(training_service is not None)
+    import_button.setToolTip("从本地 JSON 资料包导入候选；不会自动批准或安排训练")
+    library.addWidget(import_button)
+    import_feedback = label(role="muted")
+    import_feedback.hide()
+    library.addWidget(import_feedback)
     library_dynamic = QVBoxLayout()
     library_dynamic.setSpacing(12)
     library.addLayout(library_dynamic)
@@ -692,6 +700,9 @@ def training_page(training_service=None):
     plan_dynamic = QVBoxLayout()
     plan_dynamic.setSpacing(12)
     plan.addLayout(plan_dynamic)
+    logs_dynamic = QVBoxLayout()
+    logs_dynamic.setSpacing(12)
+    plan.addLayout(logs_dynamic)
     page._training_service = training_service
 
     def clear_dynamic(layout):
@@ -706,6 +717,7 @@ def training_page(training_service=None):
     def refresh():
         clear_dynamic(library_dynamic)
         clear_dynamic(plan_dynamic)
+        clear_dynamic(logs_dynamic)
         if training_service is None:
             for name in ("猫牛式", "桥式", "腰部拉伸"):
                 frame, body = card()
@@ -726,6 +738,8 @@ def training_page(training_service=None):
             body.addWidget(label("尚无可执行训练计划", role="section"))
             body.addWidget(label("计划服务尚未接入；当前页面不会执行训练。", role="muted"))
             plan_dynamic.addWidget(empty)
+            logs_dynamic.addWidget(label("训练记录服务尚未接入", role="section"))
+            logs_dynamic.addWidget(label("这里不会生成或展示演示训练记录。", role="muted"))
             return
 
         records = training_service.list_exercises()
@@ -737,6 +751,8 @@ def training_page(training_service=None):
         for record in records:
             frame, body = card()
             body.addWidget(label(record.name, role="section"))
+            if record.category:
+                body.addWidget(label(f"资料分类：{record.category}", role="muted"))
             body.addWidget(label(f"来源：{record.source_org}" + (f" · {record.source_url}" if record.source_url else ""), role="muted"))
             body.addWidget(label(record.content, role="muted"))
             body.addWidget(label(f"注意事项：{record.contraindication_notes or '未填写'}", role="muted"))
@@ -791,6 +807,34 @@ def training_page(training_service=None):
                     actions.addWidget(label(f"{entry.stop_reason}。不会再产生训练提醒。", role="muted"))
                 plan_dynamic.addWidget(frame)
 
+        logs = training_service.list_logs()
+        logs_dynamic.addWidget(label("训练记录", role="section"))
+        if not logs:
+            logs_dynamic.addWidget(label(
+                "尚无训练记录；只有你主动记录的结果会显示在这里。", role="muted"
+            ))
+        else:
+            records_by_id = {item.id: item for item in records}
+            for entry in logs:
+                exercise = records_by_id.get(entry.exercise_id) or training_service.get_by_id(entry.exercise_id)
+                exercise_name = exercise.name if exercise is not None else f"资料 #{entry.exercise_id}"
+                try:
+                    performed_at = datetime.fromisoformat(entry.performed_at_utc).astimezone().strftime(
+                        "%Y-%m-%d %H:%M"
+                    )
+                except ValueError:
+                    performed_at = entry.performed_at_utc
+                frame, body = card()
+                body.addWidget(label(exercise_name, role="section"))
+                body.addWidget(label(
+                    f"{performed_at} · {'已完成' if entry.completed else '未完成'} · 症状变化：{entry.symptom_change}",
+                    role="stage" if entry.symptom_change in ("症状加重", "出现放射或麻木") else "muted",
+                ))
+                body.addWidget(label(f"本次感受：{entry.user_response}", role="muted"))
+                if entry.notes:
+                    body.addWidget(label(f"备注：{entry.notes}", role="muted"))
+                logs_dynamic.addWidget(frame)
+
     def approve(record):
         reviewer, accepted = QInputDialog.getText(page, "录入专业确认", "专业人员姓名 / 标识：")
         if not accepted:
@@ -843,6 +887,7 @@ def training_page(training_service=None):
             show_error(str(error))
             return
         QMessageBox.information(page, "已记录", "本次训练记录已保存在本机。")
+        refresh()
 
     def add_candidate():
         record = _exercise_editor(page)
@@ -855,7 +900,38 @@ def training_page(training_service=None):
             return
         refresh()
 
+    def import_catalogue():
+        path, _ = QFileDialog.getOpenFileName(
+            page, "导入候选资料包", "", "JSON 资料包 (*.json)"
+        )
+        if not path:
+            return
+        answer = QMessageBox.question(
+            page,
+            "确认导入候选",
+            "导入后只会保存为待专业确认的候选资料，不会批准、排程或产生训练提醒。继续吗？",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            summary = training_service.import_catalogue(path)
+        except Exception:
+            logging.getLogger(__name__).exception("Exercise catalogue import failed")
+            import_feedback.setText("导入失败，未显示成功状态；请检查资料包格式和本机日志。")
+            import_feedback.setProperty("role", "errorMessage")
+            import_feedback.show()
+            return
+        import_feedback.setText(
+            f"已导入 {summary.imported} 项候选；跳过重复 {summary.skipped} 项。"
+        )
+        import_feedback.setProperty("role", "successMessage")
+        import_feedback.show()
+        refresh()
+
     add_button.clicked.connect(add_candidate)
+    import_button.clicked.connect(import_catalogue)
     page.refresh_training = refresh
     refresh()
     page.finish("训练资料和日志保存在本机 · 不自动推荐、不自动排程；出现不适可立即停止并记录")
@@ -1036,14 +1112,176 @@ def add_preview(layout, title, kind, window):
     return button
 
 
-def settings_page(window, settings_service=None):
+def _posture_event_title(event_type):
+    return {
+        "confirm_sitting": "确认坐姿",
+        "confirm_up": "确认已起身",
+        "confirm_unknown": "确认无法判断",
+        "pause": "暂停追踪",
+        "resume_needs_confirmation": "恢复并重新确认",
+        "reconcile_continue_sitting": "恢复选择：一直坐着（自述）",
+        "reconcile_up": "恢复选择：现在已起身",
+        "reconcile_unknown": "恢复选择：无法确认",
+    }.get(event_type, event_type)
+
+
+def _format_posture_event_time(value):
+    try:
+        local = datetime.fromisoformat(value).astimezone()
+        return local.strftime("%Y-%m-%d %H:%M")
+    except (TypeError, ValueError):
+        return value
+
+
+def _correction_dialog(parent, event, posture_service):
+    dialog = QDialog(parent)
+    dialog.setWindowTitle("更正人工姿势记录")
+    dialog.setMinimumWidth(430)
+    body = QVBoxLayout(dialog)
+    body.setContentsMargins(24, 24, 24, 24)
+    body.setSpacing(12)
+    body.addWidget(label("这只会追加一条更正记录，不会删除原始事实。", role="muted"))
+    body.addWidget(label(
+        f"原记录：{_format_posture_event_time(event['occurred_at_utc'])} · "
+        f"{_posture_event_title(event['event_type'])}", role="field"
+    ))
+    body.addWidget(label("更正为", role="field"))
+    replacement = QComboBox()
+    options = (
+        ("confirm_sitting", "现在坐着"),
+        ("confirm_up", "现在已起身"),
+        ("confirm_unknown", "无法确认"),
+    )
+    for value, text in options:
+        replacement.addItem(text, value)
+    body.addWidget(replacement)
+    error = label(role="errorMessage")
+    error.hide()
+    body.addWidget(error)
+    buttons = QDialogButtonBox(
+        QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
+    )
+    buttons.rejected.connect(dialog.reject)
+
+    def save():
+        try:
+            posture_service.correct_event(event["event_id"], replacement.currentData())
+        except Exception:
+            logging.getLogger(__name__).exception("Could not correct posture event")
+            error.setText("更正未保存；当前历史上下文不允许该替换，请检查后重试。")
+            error.show()
+            return
+        dialog.accept()
+
+    buttons.accepted.connect(save)
+    body.addWidget(buttons)
+    return dialog
+
+
+def settings_page(window, settings_service=None, posture_service=None, data_management_service=None):
     page = DesignPage("设置", "本地运行、开机常驻与提醒偏好；可用项和待实现项分开。", "Phase 4D：完整设置，")
-    page.status.setText("托盘与登录启动已有适配器 · 提醒偏好已接入 · 数据管理待实现")
+    page.status.setText(
+        "托盘与登录启动已有适配器 · 提醒偏好已接入 · 本地数据管理已接入"
+        if data_management_service else
+        "托盘与登录启动已有适配器 · 提醒偏好已接入 · 数据管理待实现"
+    )
     local = page.section("本地运行 · 保护隐私")
     local.addWidget(label("核心数据保存在本机，不默认上传健康数据、不启用遥测。", role="muted"))
     row = page.row(local)
-    for title in ("备份 / 恢复 · 待实现", "删除本地记录 · 待实现"):
-        pending_button(title, row)
+    page.backup_button = QPushButton("备份本地数据" if data_management_service else "备份 / 恢复 · 待实现")
+    page.restore_button = QPushButton("恢复本地数据" if data_management_service else "恢复本地数据 · 待实现")
+    page.delete_data_button = QPushButton("删除健康记录" if data_management_service else "删除本地记录 · 待实现")
+    for button in (page.backup_button, page.restore_button, page.delete_data_button):
+        button.setMinimumHeight(44)
+        if data_management_service:
+            row.addWidget(button)
+        else:
+            button.setEnabled(False)
+            button.setToolTip("本轮尚未接入本地数据管理")
+            row.addWidget(button)
+    page.data_status = label(role="muted")
+    local.addWidget(page.data_status)
+    page.data_status.setText(
+        "备份使用 SQLite 一致性快照；恢复前会校验文件；删除不可撤销。"
+        if data_management_service else
+        "本地备份、恢复和删除仍待接入。"
+    )
+
+    if data_management_service:
+        def backup_data():
+            path, _ = QFileDialog.getSaveFileName(
+                page, "备份宇安本地数据", "yu-an-backup.sqlite3", "SQLite 数据库 (*.sqlite3)"
+            )
+            if not path:
+                return
+            try:
+                data_management_service.backup_to(path)
+            except Exception:
+                logging.getLogger(__name__).exception("Local database backup failed")
+                page.data_status.setText("备份失败，未显示成功状态；请检查本机日志。")
+                page.data_status.setProperty("tone", "danger")
+                return
+            page.data_status.setText(f"已完成本地数据备份：{path}")
+            page.data_status.setProperty("tone", "success")
+
+        def restore_data():
+            path, _ = QFileDialog.getOpenFileName(
+                page, "恢复宇安本地数据", "", "SQLite 数据库 (*.sqlite3);;所有文件 (*.*)"
+            )
+            if not path:
+                return
+            answer = QMessageBox.question(
+                page, "确认恢复", "恢复会替换当前本地记录，并重新要求确认当前姿势。继续吗？",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if answer != QMessageBox.StandardButton.Yes:
+                return
+            try:
+                data_management_service.restore_from(path)
+            except Exception:
+                logging.getLogger(__name__).exception("Local database restore failed")
+                page.data_status.setText("恢复失败，当前本地记录未显示为已恢复；请检查本机日志。")
+                page.data_status.setProperty("tone", "danger")
+                return
+            page.data_status.setText("本地数据已恢复；姿势状态已进入待确认流程。")
+            page.data_status.setProperty("tone", "success")
+            if hasattr(window, "_refresh_posture"):
+                window._refresh_posture()
+            if hasattr(page, "refresh_corrections"):
+                page.refresh_corrections()
+
+        def delete_data():
+            answer = QMessageBox.question(
+                page, "确认删除健康记录",
+                "这会删除坐姿、提醒、环境事件、症状和训练记录，且不可撤销。\n\n"
+                "建议先完成备份。仍要继续吗？",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if answer != QMessageBox.StandardButton.Yes:
+                return
+            try:
+                summary = data_management_service.delete_health_records()
+            except Exception:
+                logging.getLogger(__name__).exception("Local health data deletion failed")
+                page.data_status.setText("删除失败，当前本地记录未改变；请检查本机日志。")
+                page.data_status.setProperty("tone", "danger")
+                return
+            page.data_status.setText(
+                "已删除本地健康记录："
+                f"症状 {summary.symptom_entries} 条、姿势事件 {summary.posture_events} 条、"
+                f"训练记录 {summary.exercise_logs} 条。"
+            )
+            page.data_status.setProperty("tone", "success")
+            if hasattr(window, "_refresh_posture"):
+                window._refresh_posture()
+            if hasattr(page, "refresh_corrections"):
+                page.refresh_corrections()
+
+        page.backup_button.clicked.connect(backup_data)
+        page.restore_button.clicked.connect(restore_data)
+        page.delete_data_button.clicked.connect(delete_data)
     startup = page.section("开机常驻 · 系统托盘")
     page.startup_check = QCheckBox("登录 Windows 时启动")
     page.startup_check.setMinimumHeight(44)
@@ -1123,7 +1361,73 @@ def settings_page(window, settings_service=None):
         page.reminder_followups_check.toggled.connect(update_followups)
     startup_preview = page.section("启动与恢复确认")
     add_preview(startup_preview, "查看开机启动询问样式", "startup", window)
-    startup_preview.addWidget(label("实际启动和恢复核实仍在首页状态卡完成；独立弹窗只提供设计预览。", role="muted"))
+    startup_preview.addWidget(label("实际启动和恢复核实会在应用启动后询问；独立弹窗按钮仅提供设计预览。", role="muted"))
+
+    correction = page.section("人工姿势记录 · 更正")
+    correction.addWidget(label(
+        "发现误操作时可追加更正。原记录、发生时间和更正关系都会保留；更正不会伪造起身，也不会重置无关提醒。",
+        role="muted",
+    ))
+    page.correction_status = label(role="muted")
+    correction.addWidget(page.correction_status)
+    page.correction_dynamic = QVBoxLayout()
+    page.correction_dynamic.setSpacing(8)
+    correction.addLayout(page.correction_dynamic)
+
+    def refresh_corrections():
+        while page.correction_dynamic.count():
+            item = page.correction_dynamic.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        if posture_service is None:
+            page.correction_status.setText("姿势服务未绑定；当前窗口仅用于设计预览")
+            return
+        events = [
+            event for event in posture_service.events
+            if event["event_type"] in {
+                "confirm_sitting", "confirm_up", "confirm_unknown", "pause",
+                "resume_needs_confirmation", "reconcile_continue_sitting",
+                "reconcile_up", "reconcile_unknown",
+            }
+        ]
+        corrections = {
+            event["payload"].get("target_event_id")
+            for event in posture_service.events
+            if event["event_type"] == "correction"
+        }
+        if not events:
+            page.correction_status.setText("暂无可更正的人工姿势记录")
+            return
+        page.correction_status.setText("更正只追加事件；已更正记录仍可追溯")
+        for event in reversed(events):
+            row = QWidget()
+            row_layout = QHBoxLayout(row)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.setSpacing(10)
+            text = label(
+                f"{_format_posture_event_time(event['occurred_at_utc'])} · "
+                f"{_posture_event_title(event['event_type'])}", role="muted"
+            )
+            row_layout.addWidget(text, 1)
+            if event["event_id"] in corrections:
+                row_layout.addWidget(label("已有更正", role="muted"))
+            else:
+                button = QPushButton("更正")
+                button.setMinimumHeight(42)
+                button.setAccessibleName(f"更正 {_posture_event_title(event['event_type'])} 记录")
+
+                def correct(_checked=False, target=event):
+                    dialog = _correction_dialog(page, target, posture_service)
+                    if dialog.exec() == QDialog.DialogCode.Accepted:
+                        refresh_corrections()
+                        page.correction_status.setText("更正已追加；原记录仍保留")
+
+                button.clicked.connect(correct)
+                row_layout.addWidget(button)
+            page.correction_dynamic.addWidget(row)
+
+    page.refresh_corrections = refresh_corrections
+    refresh_corrections()
     page.finish()
     return page
 
@@ -1152,6 +1456,7 @@ def help_page(window):
 
 
 def build_pages(window, symptom_service=None, training_service=None, statistics_service=None,
-                settings_service: SettingsService | None = None):
+                settings_service: SettingsService | None = None, posture_service=None,
+                data_management_service=None):
     return {"record": symptoms_page(symptom_service), "training": training_page(training_service), "chart": statistics_page(statistics_service),
-            "settings": settings_page(window, settings_service), "info": help_page(window)}
+            "settings": settings_page(window, settings_service, posture_service, data_management_service), "info": help_page(window)}

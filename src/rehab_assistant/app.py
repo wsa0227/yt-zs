@@ -23,6 +23,7 @@ from rehab_assistant.services.settings_service import SettingsService
 from rehab_assistant.services.symptom_service import SymptomService
 from rehab_assistant.services.exercise_service import ExerciseService
 from rehab_assistant.services.statistics_service import StatisticsService
+from rehab_assistant.services.data_management_service import DataManagementService
 from rehab_assistant.ui.main_window import MainWindow
 from rehab_assistant.ui.widgets import brand_icon
 from rehab_assistant.ui.tray_menu import build_tray_menu
@@ -117,6 +118,7 @@ def main() -> int:
         exercises = ExerciseService(database)
         statistics = StatisticsService(database)
         settings = SettingsService(database)
+        data_management = DataManagementService(database, posture)
     except Exception as error:
         print(f"应用初始化失败：{error}；数据目录：{directory}", file=sys.stderr)
         logging.getLogger(__name__).exception("Application initialization failed")
@@ -135,6 +137,7 @@ def main() -> int:
     window = MainWindow(
         tray, posture, reminders, environment, symptoms, exercises, statistics,
         settings_service=settings,
+        data_management_service=data_management,
     )
     environment._window = window
     environment.start(
@@ -183,6 +186,7 @@ def main() -> int:
     else:
         log.warning("System tray is unavailable; window remains usable")
     window.show()
+    QTimer.singleShot(0, window.prompt_startup_confirmation)
 
     try:
         result = app.exec()

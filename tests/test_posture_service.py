@@ -59,6 +59,17 @@ class PostureServiceTests(unittest.TestCase):
         self.clock.advance(minutes=35)
         self.assertEqual((35,), self.service.evaluate_reminders())
 
+    def test_wall_clock_jump_is_recorded_and_requires_confirmation(self):
+        self.service.confirm_sitting()
+        self.clock.value += timedelta(hours=8)
+
+        self.assertTrue(self.service.check_clock_consistency())
+        self.assertEqual("NEEDS_CONFIRMATION", self.service.state.posture)
+        event = self.service.events[-1]
+        self.assertEqual("interrupted", event["event_type"])
+        self.assertEqual("clock_jump", event["payload"]["reason"])
+        self.assertFalse(self.service.check_clock_consistency())
+
     def test_manual_up_and_sit_create_separate_cycles(self):
         self.service.confirm_sitting()
         first_id = self.service.state.session_id
@@ -102,6 +113,46 @@ class PostureServiceTests(unittest.TestCase):
         self.service.close()
         recovered = PostureService(self.connection, self.clock)
         self.assertEqual("NEEDS_CONFIRMATION", recovered.state.posture)
+
+    def test_startup_unknown_confirmation_is_explicit_and_does_not_invent_elapsed_time(self):
+        self.service.confirm_unknown()
+        self.assertEqual("UNKNOWN", self.service.state.posture)
+        self.assertIsNone(self.service.elapsed_seconds())
+        event = self.service.events[-1]
+        self.assertEqual("confirm_unknown", event["event_type"])
+        self.assertEqual("user_report", event["payload"]["basis"])
+        self.assertEqual("unknown", event["payload"]["decision"])
+
+    def test_recovery_up_confirmation_closes_gap_without_rewriting_history(self):
+        self.service.confirm_sitting()
+        original_events = len(self.service.events)
+        self.service.observe_environment("sleep_started")
+        recovered = PostureService(self.connection, self.clock)
+        self.assertEqual("NEEDS_CONFIRMATION", recovered.state.posture)
+        recovered.reconcile_up()
+        self.assertEqual("UP", recovered.state.posture)
+        self.assertEqual(original_events + 4, len(recovered.events))
+        self.assertEqual("interrupted", recovered.events[-3]["event_type"])
+        self.assertEqual("reconcile_up", recovered.events[-1]["event_type"])
+        self.assertEqual("user_report", recovered.events[-1]["payload"]["basis"])
+
+    def test_reloading_unchanged_storage_is_idempotent(self):
+        self.service.confirm_sitting()
+        other_process = PostureService(self.connection, self.clock)
+        other_process.confirm_up()
+
+        self.service.reload_from_storage()
+        first_count = len(self.service.events)
+        first_restore_interruptions = [
+            event for event in self.service.events
+            if event["event_type"] == "interrupted"
+            and event["payload"].get("reason") == "database_restore"
+        ]
+
+        self.service.reload_from_storage()
+        self.assertEqual(first_count, len(self.service.events))
+        self.assertEqual(1, len(first_restore_interruptions))
+        self.assertEqual("NEEDS_CONFIRMATION", self.service.state.posture)
 
     def test_event_replay_reconstructs_current_projection(self):
         self.service.confirm_sitting()

@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 
 def migrate(connection: sqlite3.Connection) -> int:
@@ -92,6 +92,13 @@ def migrate(connection: sqlite3.Connection) -> int:
             "notes TEXT NOT NULL"
             ")",
         ),
+        6: (
+            "ALTER TABLE exercises ADD COLUMN catalog_id TEXT",
+            "ALTER TABLE exercises ADD COLUMN category TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE exercises ADD COLUMN review_questions_json TEXT NOT NULL DEFAULT '[]'",
+            "CREATE UNIQUE INDEX exercises_catalog_id_unique "
+            "ON exercises(catalog_id) WHERE catalog_id IS NOT NULL",
+        ),
     }
     while version < SCHEMA_VERSION:
         next_version = version + 1
@@ -112,8 +119,14 @@ def open_database(path: Path) -> sqlite3.Connection:
     connection = sqlite3.connect(path, timeout=5)
     try:
         connection.execute("PRAGMA foreign_keys = ON")
+        integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
+        if integrity != "ok":
+            raise sqlite3.DatabaseError(f"SQLite integrity check failed: {integrity}")
         connection.execute("PRAGMA journal_mode = WAL")
         migrate(connection)
+        integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
+        if integrity != "ok":
+            raise sqlite3.DatabaseError(f"SQLite integrity check failed: {integrity}")
     except Exception:
         connection.close()
         raise

@@ -28,6 +28,9 @@ class ExerciseRecord:
     status: str
     created_at_utc: str | None
     updated_at_utc: str | None
+    catalog_id: str | None = None
+    category: str = ""
+    review_questions: tuple[str, ...] = ()
 
     def validate(self) -> "ExerciseRecord":
         name = self.name.strip() if isinstance(self.name, str) else ""
@@ -40,6 +43,12 @@ class ExerciseRecord:
             else ""
         )
         reviewer = self.reviewer.strip() if isinstance(self.reviewer, str) else None
+        catalog_id = self.catalog_id.strip() if isinstance(self.catalog_id, str) else None
+        category = self.category.strip() if isinstance(self.category, str) else ""
+        questions = tuple(
+            question.strip() for question in self.review_questions
+            if isinstance(question, str) and question.strip()
+        )
         if not name or len(name) > MAX_NAME_LENGTH:
             raise ValueError(f"name must be 1-{MAX_NAME_LENGTH} characters")
         if len(source_url) > MAX_SOURCE_URL_LENGTH:
@@ -66,6 +75,9 @@ class ExerciseRecord:
             status=self.status,
             created_at_utc=self.created_at_utc,
             updated_at_utc=self.updated_at_utc,
+            catalog_id=catalog_id or None,
+            category=category,
+            review_questions=questions,
         )
 
 

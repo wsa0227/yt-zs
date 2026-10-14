@@ -11,7 +11,7 @@
   "html_automatic_external_requests": "NONE_BY_STATIC_INSPECTION",
   "medical_review": "NOT_PERFORMED",
   "video_playback": "NOT_PERFORMED",
-  "application_import": "NOT_PERFORMED",
+  "application_import": "PASS: 10 candidates imported, duplicate import skipped, invalid shape rejected, transaction rollback covered; no approvals/plans/reminders",
   "windows_integration": "NOT_PERFORMED",
   "docx_visual_qa": "PASS: 5 pages rendered and visually checked; final pages 1,2,4,5 byte-identical to inspected images; corrected page 3 re-inspected.",
   "html_static_qa": {

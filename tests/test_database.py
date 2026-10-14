@@ -1,7 +1,9 @@
 import sqlite3
+import tempfile
 import unittest
+from pathlib import Path
 
-from rehab_assistant.storage.database import SCHEMA_VERSION, migrate
+from rehab_assistant.storage.database import SCHEMA_VERSION, migrate, open_database
 
 
 class DatabaseMigrationTests(unittest.TestCase):
@@ -57,6 +59,19 @@ class DatabaseMigrationTests(unittest.TestCase):
         with self.assertRaises(sqlite3.OperationalError):
             migrate(connection)
         self.assertEqual(0, connection.execute("PRAGMA user_version").fetchone()[0])
+
+    def test_corrupt_database_is_rejected_before_wal_setup_and_preserved(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "assistant.sqlite3"
+            original = b"not a sqlite database"
+            path.write_bytes(original)
+
+            with self.assertRaises(sqlite3.DatabaseError):
+                open_database(path)
+
+            self.assertEqual(original, path.read_bytes())
+            self.assertFalse(path.with_name(path.name + "-wal").exists())
+            self.assertFalse(path.with_name(path.name + "-shm").exists())
 
 
 if __name__ == "__main__":

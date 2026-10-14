@@ -3,10 +3,18 @@
 from __future__ import annotations
 
 import sqlite3
+import json
+from pathlib import Path
 from datetime import datetime, timezone
 from typing import Protocol
 
 from rehab_assistant.domain.exercises import ExerciseLog, ExercisePlan, ExerciseRecord
+
+
+class CatalogueImportSummary:
+    def __init__(self, imported: int, skipped: int):
+        self.imported = imported
+        self.skipped = skipped
 
 
 class Clock(Protocol):
@@ -35,7 +43,8 @@ class ExerciseService:
                 cursor = self._connection.execute(
                     "INSERT INTO exercises(name, source_url, source_org, content, "
                     "contraindication_notes, reviewer, approved_at_utc, status, "
-                    "created_at_utc, updated_at_utc) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                    "created_at_utc, updated_at_utc, catalog_id, category, "
+                    "review_questions_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     self._exercise_values(record, now, now),
                 )
                 record_id = int(cursor.lastrowid)
@@ -49,13 +58,99 @@ class ExerciseService:
                 self._connection.execute(
                     "UPDATE exercises SET name=?, source_url=?, source_org=?, content=?, "
                     "contraindication_notes=?, reviewer=?, approved_at_utc=?, status=?, "
-                    "created_at_utc=?, updated_at_utc=? WHERE id=?",
+                    "created_at_utc=?, updated_at_utc=?, catalog_id=?, category=?, "
+                    "review_questions_json=? WHERE id=?",
                     self._exercise_values(record, existing.created_at_utc or now, now)
                     + (record.id,),
                 )
                 record_id = record.id
                 created_at = existing.created_at_utc or now
         return self.get_by_id(record_id) or self._with_timestamps(record, created_at, now, record_id)
+
+    def import_catalogue(self, path: str | Path) -> CatalogueImportSummary:
+        """Import a user-selected catalogue as candidates, never as approvals."""
+        source_path = Path(path)
+        payload = json.loads(source_path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict) or not isinstance(payload.get("exercises"), list):
+            raise ValueError("资料包格式无效：缺少 exercises 列表")
+        source_payload = payload.get("sources")
+        if not isinstance(source_payload, list):
+            raise ValueError("资料包格式无效：缺少 sources 列表")
+        sources = {}
+        for source in source_payload:
+            if not isinstance(source, dict) or not isinstance(source.get("id"), str):
+                raise ValueError("资料包格式无效：来源缺少字符串 id")
+            source_id = source["id"].strip()
+            if not source_id or source_id in sources:
+                raise ValueError("资料包格式无效：来源 id 为空或重复")
+            sources[source_id] = source
+        candidates = []
+        for item in payload["exercises"]:
+            if not isinstance(item, dict):
+                raise ValueError("资料包格式无效：动作条目不是对象")
+            catalog_id = item.get("id")
+            name = item.get("name_zh")
+            if not isinstance(catalog_id, str) or not isinstance(name, str):
+                raise ValueError("资料包格式无效：动作缺少 id 或 name_zh")
+            catalog_id = catalog_id.strip()
+            name = name.strip()
+            if not catalog_id or not name:
+                raise ValueError("资料包格式无效：动作缺少 id 或 name_zh")
+            source_ids = item.get("source_ids")
+            if not isinstance(source_ids, list) or not source_ids:
+                raise ValueError(f"资料包格式无效：{catalog_id} 缺少来源")
+            if any(not isinstance(source_id, str) or not source_id.strip() for source_id in source_ids):
+                raise ValueError(f"资料包格式无效：{catalog_id} 的来源 id 无效")
+            source_items = [sources[source_id.strip()] for source_id in source_ids
+                            if source_id.strip() in sources]
+            if len(source_items) != len(set(source_id.strip() for source_id in source_ids)):
+                raise ValueError(f"资料包格式无效：{catalog_id} 缺少来源")
+            source_org = "；".join(dict.fromkeys(str(source.get("publisher", "")).strip()
+                                                   for source in source_items if source.get("publisher")))
+            source_url = next((str(source.get("url", "")).strip() for source in source_items
+                               if source.get("url")), "")
+            review_questions = item.get("review_questions", [])
+            if not isinstance(review_questions, list):
+                raise ValueError(f"资料包格式无效：{catalog_id} 的 review_questions 不是列表")
+            if any(not isinstance(question, str) for question in review_questions):
+                raise ValueError(f"资料包格式无效：{catalog_id} 的 review_questions 含非文本项")
+            questions = tuple(question.strip() for question in review_questions if question.strip())
+            description = item.get("description_zh", "")
+            category = item.get("category", "")
+            if not isinstance(description, str) or not isinstance(category, str):
+                raise ValueError(f"资料包格式无效：{catalog_id} 的文本字段无效")
+            content = description.strip()
+            if questions:
+                content += "\n\n专业确认前需核对：\n" + "\n".join(f"- {question}" for question in questions)
+            limitations = "；".join(dict.fromkeys(str(source.get("limitations", "")).strip()
+                                                    for source in source_items if source.get("limitations")))
+            candidates.append(ExerciseRecord(
+                id=None, name=name, source_url=source_url, source_org=source_org or "资料包来源待核对",
+                content=content or "候选资料，内容待专业人员确认。",
+                contraindication_notes=limitations or "资料包候选内容未经个体化确认；出现不适请停止并联系专业人员。",
+                reviewer=None, approved_at_utc=None, status="CANDIDATE", created_at_utc=None,
+                updated_at_utc=None, catalog_id=catalog_id, category=category.strip(),
+                review_questions=questions,
+            ).validate())
+        existing_ids = {row[0] for row in self._connection.execute(
+            "SELECT catalog_id FROM exercises WHERE catalog_id IS NOT NULL"
+        )}
+        imported = skipped = 0
+        with self._connection:
+            for record in candidates:
+                if record.catalog_id in existing_ids:
+                    skipped += 1
+                    continue
+                now = self._utc_now_iso()
+                self._connection.execute(
+                    "INSERT INTO exercises(name, source_url, source_org, content, contraindication_notes, "
+                    "reviewer, approved_at_utc, status, created_at_utc, updated_at_utc, catalog_id, category, "
+                    "review_questions_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    self._exercise_values(record, now, now),
+                )
+                existing_ids.add(record.catalog_id)
+                imported += 1
+        return CatalogueImportSummary(imported, skipped)
 
     def approve(
         self, exercise_id: int, reviewer: str, approved_at_utc: str | None = None
@@ -97,7 +192,8 @@ class ExerciseService:
     def get_by_id(self, exercise_id: int) -> ExerciseRecord | None:
         row = self._connection.execute(
             "SELECT id, name, source_url, source_org, content, contraindication_notes, "
-            "reviewer, approved_at_utc, status, created_at_utc, updated_at_utc "
+            "reviewer, approved_at_utc, status, created_at_utc, updated_at_utc, catalog_id, category, "
+            "review_questions_json "
             "FROM exercises WHERE id=?",
             (exercise_id,),
         ).fetchone()
@@ -110,7 +206,8 @@ class ExerciseService:
         values = (status,) if status else ()
         rows = self._connection.execute(
             "SELECT id, name, source_url, source_org, content, contraindication_notes, "
-            "reviewer, approved_at_utc, status, created_at_utc, updated_at_utc "
+            "reviewer, approved_at_utc, status, created_at_utc, updated_at_utc, catalog_id, "
+            "category, review_questions_json "
             "FROM exercises" + clause + " ORDER BY updated_at_utc DESC, id DESC",
             values,
         ).fetchall()
@@ -228,7 +325,8 @@ class ExerciseService:
         return (
             record.name, record.source_url, record.source_org, record.content,
             record.contraindication_notes, record.reviewer, record.approved_at_utc,
-            record.status, created_at, updated_at,
+            record.status, created_at, updated_at, record.catalog_id, record.category,
+            json.dumps(record.review_questions, ensure_ascii=False),
         )
 
     @staticmethod
@@ -239,6 +337,8 @@ class ExerciseService:
             contraindication_notes=record.contraindication_notes,
             reviewer=record.reviewer, approved_at_utc=record.approved_at_utc,
             status=record.status, created_at_utc=created_at, updated_at_utc=updated_at,
+            catalog_id=record.catalog_id, category=record.category,
+            review_questions=record.review_questions,
         ).validate()
 
     @staticmethod
@@ -249,6 +349,9 @@ class ExerciseService:
             reviewer=str(row[6]) if row[6] is not None else None,
             approved_at_utc=str(row[7]) if row[7] is not None else None,
             status=str(row[8]), created_at_utc=str(row[9]), updated_at_utc=str(row[10]),
+            catalog_id=str(row[11]) if row[11] is not None else None,
+            category=str(row[12]),
+            review_questions=tuple(json.loads(row[13]) or ()),
         ).validate()
 
     @staticmethod

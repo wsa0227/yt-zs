@@ -4,7 +4,7 @@ Windows 宇安 V1 的本地开发仓库。
 
 产品 slogan：予慧宇，一份日常的安心。
 
-当前实现按 `PRD.md` 分阶段推进，Phase 3 的提醒持久化/投递路由、Windows 环境事实适配接口、Phase 4A 的症状记录 / 安全规则基础、Phase 4B 的专业确认训练基础、Phase 4C 的统计趋势基础和 Phase 4D 的提醒偏好基础已经完成。真实 Windows 桌面通知、声音控制、锁屏、休眠/恢复仍需在目标系统上单独验收。
+当前实现按 `PRD.md` 分阶段推进，Phase 3 的提醒持久化/投递路由、Windows 环境事实适配接口、Phase 4A 的症状记录 / 安全规则基础、Phase 4B 的专业确认训练基础（含用户主动导入候选资料包，schema v6）、Phase 4C 的统计趋势基础、Phase 4D 的提醒偏好基础和 Phase 5 的可靠性基础已经完成。真实 Windows 桌面通知、声音控制、锁屏、休眠/恢复仍需在目标系统上单独验收。
 
 ## 本地启动（Windows PowerShell）
 
@@ -38,4 +38,4 @@ cd C:\workspase\python-project\yt-zs
 .\.venv\Scripts\python.exe tools/render_ui_preview.py --platform windows --output-dir artifacts/ui-pages-windows
 ```
 
-预览使用内存 SQLite 和固定测试时钟，不读写实际健康数据，也不发送系统通知。本轮全量自动化测试 `117/117` 通过；详细覆盖、缩放结果和未验收事项见 `docs/UI_COVERAGE.md`。页面占位不等于业务完成。本轮未生成安装包。
+预览使用内存 SQLite 和固定测试时钟，不读写实际健康数据，也不发送系统通知。本轮全量自动化测试 `134/134` 通过；详细覆盖、缩放结果和未验收事项见 `docs/UI_COVERAGE.md`。页面占位不等于业务完成。本轮未生成安装包。

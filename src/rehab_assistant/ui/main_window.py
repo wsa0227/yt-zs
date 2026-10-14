@@ -8,7 +8,7 @@ from datetime import datetime
 from PySide6.QtCore import QSize, Qt, QTimer
 from PySide6.QtGui import QColor, QCloseEvent
 from PySide6.QtWidgets import (
-    QBoxLayout, QFrame, QHBoxLayout, QLabel, QMainWindow, QPushButton,
+    QBoxLayout, QDialog, QFrame, QHBoxLayout, QLabel, QMainWindow, QPushButton,
     QScrollArea, QSystemTrayIcon, QVBoxLayout, QWidget,
     QGraphicsDropShadowEffect, QComboBox,
 )
@@ -52,6 +52,7 @@ class MainWindow(QMainWindow):
         training_service=None,
         statistics_service=None,
         settings_service=None,
+        data_management_service=None,
     ) -> None:
         super().__init__()
         self._tray, self._posture = tray, posture
@@ -60,8 +61,11 @@ class MainWindow(QMainWindow):
         self._training_service = training_service
         self._statistics_service = statistics_service
         self._settings_service = settings_service
+        self._data_management_service = data_management_service
         self._rendered_posture = None
         self._rendered_reminders = None
+        self._startup_prompted = False
+        self._startup_dialog = None
         self._allow_exit = False
         self._layout_settler = QTimer(self)
         self._layout_settler.setSingleShot(True)
@@ -236,6 +240,8 @@ class MainWindow(QMainWindow):
             training_service=self._training_service,
             statistics_service=self._statistics_service,
             settings_service=self._settings_service,
+            posture_service=self._posture,
+            data_management_service=self._data_management_service,
         ))
         for key, content in self._pages.items():
             if key != "home":
@@ -306,12 +312,89 @@ class MainWindow(QMainWindow):
         page = self._pages.get(key)
         if page is not None and hasattr(page, "refresh_history"):
             page.refresh_history()
+        if page is not None and hasattr(page, "refresh_corrections"):
+            page.refresh_corrections()
 
     def open_page(self, key):
         self.show_page(key)
         self.showNormal()
         self.raise_()
         self.activateWindow()
+
+    def prompt_startup_confirmation(self) -> None:
+        """Ask for a user report once after launch without starting a timer silently."""
+        if self._posture is None or self._startup_prompted or self._startup_dialog is not None:
+            return
+        state = self._posture.state.posture
+        if state not in ("UNKNOWN", "UP", "NEEDS_CONFIRMATION"):
+            return
+        self._startup_prompted = True
+
+        recovery = state == "NEEDS_CONFIRMATION"
+        dialog = QDialog(self)
+        dialog.setObjectName("recoveryDialog")
+        dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
+        dialog.setWindowTitle("启动确认 · 宇安")
+        dialog.setModal(True)
+        dialog.setMinimumWidth(460)
+        body = QVBoxLayout(dialog)
+        body.setContentsMargins(28, 26, 28, 24)
+        body.setSpacing(12)
+        body.addWidget(label("先确认当前姿势", role="title"))
+        if recovery:
+            description = (
+                "上次运行出现中断，期间的真实姿势无法确定。请按你的记忆选择；"
+                "在完成核实前，宇安不会把这段时间当作确定坐姿。"
+            )
+        else:
+            description = (
+                "启动后先确认你现在的姿势。未确认前不会计入已确认坐姿时间，"
+                "键鼠活动也不会被当作起身或坐下。"
+            )
+        body.addWidget(label(description, role="muted"))
+
+        first_choice = ("一直坐着（自述）", "按上次确认推算，可能不准确") if recovery else (
+            "现在坐着", "开始新的人工确认坐姿"
+        )
+        choices = (
+            (first_choice,
+             self._posture.reconcile_continue_sitting if recovery else self._posture.confirm_sitting),
+            (("现在已起身", "结束上一段坐姿，不开始新的计时"),
+             self._posture.reconcile_up if recovery else self._posture.confirm_up),
+            (("无法确认", "保留未知状态，不开始坐姿计时"),
+             self._posture.reconcile_unknown if recovery else self._posture.confirm_unknown),
+        )
+        error = label(role="errorMessage")
+        error.hide()
+        body.addWidget(error)
+
+        for index, ((text, hint), callback) in enumerate(choices):
+            button = QPushButton(text)
+            button.setMinimumHeight(46)
+            button.setProperty("role", "primary" if index == 0 else "secondary")
+            button.setAccessibleName(f"{text}；{hint}")
+            button.setToolTip(hint)
+            body.addWidget(button)
+
+            def choose(_checked=False, fn=callback):
+                try:
+                    fn()
+                except Exception:
+                    logging.getLogger(__name__).exception("Startup posture confirmation failed")
+                    error.setText("这次确认未保存，请核对当前状态后重试；详见本机日志。")
+                    error.show()
+                    return
+                self._startup_dialog = None
+                dialog.accept()
+                self._error_message.hide()
+                self._refresh_posture()
+
+            button.clicked.connect(choose)
+
+        body.addWidget(label("可以关闭此窗口稍后处理；在确认前不会静默继续计时。", role="muted"))
+        self._startup_dialog = dialog
+        dialog.finished.connect(lambda _result: setattr(self, "_startup_dialog", None))
+        dialog.open()
 
     def _stat_card(self, icon_name, title, value, hint):
         frame = QFrame()
@@ -433,6 +516,11 @@ class MainWindow(QMainWindow):
             self._time_context.setText("坐姿追踪尚未启用")
             self._notice.setText("当前没有可用的坐姿服务，不能开始计时。")
             return
+        try:
+            self._posture.check_clock_consistency()
+        except Exception:
+            logging.getLogger(__name__).exception("Clock consistency check failed")
+            self._show_error("系统时间变化未能记录；请人工核实当前姿势，详见本机日志。")
         if self._environment is not None:
             try:
                 self._environment.poll_once()
@@ -575,7 +663,7 @@ class MainWindow(QMainWindow):
             "PAUSED": (("恢复并重新确认", self._posture.resume_needs_confirmation),),
             "NEEDS_CONFIRMATION": (
                 ("一直坐着（自述）", self._posture.reconcile_continue_sitting),
-                ("现在已起身", self._posture.confirm_up),
+                ("现在已起身", self._posture.reconcile_up),
                 ("无法确认", self._posture.reconcile_unknown),
             ),
         }
