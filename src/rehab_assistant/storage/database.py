@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 def migrate(connection: sqlite3.Connection) -> int:
@@ -44,6 +44,19 @@ def migrate(connection: sqlite3.Connection) -> int:
             "attempt_count INTEGER NOT NULL DEFAULT 0, last_attempt_at_utc TEXT, "
             "last_error TEXT, seen_at_utc TEXT, "
             "UNIQUE(session_id, threshold_minutes, sequence_no))",
+        ),
+        4: (
+            "CREATE TABLE symptom_entries ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "record_date_local TEXT NOT NULL UNIQUE, "
+            "pain_score INTEGER CHECK(pain_score IS NULL OR (pain_score >= 0 AND pain_score <= 10)), "
+            "body_locations_json TEXT NOT NULL, "
+            "leg_symptoms TEXT NOT NULL, "
+            "activity_relation TEXT NOT NULL, "
+            "safety_flags_json TEXT NOT NULL, "
+            "notes TEXT NOT NULL, "
+            "created_at_utc TEXT NOT NULL, "
+            "updated_at_utc TEXT NOT NULL)",
         ),
     }
     while version < SCHEMA_VERSION:

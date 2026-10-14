@@ -48,10 +48,12 @@ class MainWindow(QMainWindow):
         posture: PostureService | None = None,
         reminders: ReminderService | None = None,
         environment=None,
+        symptom_service=None,
     ) -> None:
         super().__init__()
         self._tray, self._posture = tray, posture
         self._reminders, self._environment = reminders, environment
+        self._symptom_service = symptom_service
         self._rendered_posture = None
         self._rendered_reminders = None
         self._allow_exit = False
@@ -222,7 +224,7 @@ class MainWindow(QMainWindow):
         self._page_layout.addLayout(self._quick_links)
         self._page_layout.addWidget(self._footer)
         self._page_layout.addStretch()
-        self._pages.update(build_pages(self))
+        self._pages.update(build_pages(self, symptom_service=self._symptom_service))
         for key, content in self._pages.items():
             if key != "home":
                 self._body_layout.addWidget(content)
@@ -289,6 +291,9 @@ class MainWindow(QMainWindow):
         self._last_layout_key = None
         self._adapt_layout()
         self.centralWidget().verticalScrollBar().setValue(0)
+        page = self._pages.get(key)
+        if page is not None and hasattr(page, "refresh_history"):
+            page.refresh_history()
 
     def open_page(self, key):
         self.show_page(key)
