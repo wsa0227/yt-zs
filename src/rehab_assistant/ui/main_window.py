@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
     QGraphicsDropShadowEffect, QComboBox,
 )
 
-from rehab_assistant import APP_NAME
+from rehab_assistant import APP_NAME, APP_SLOGAN
 from rehab_assistant.services.posture_service import PostureService
 from rehab_assistant.services.reminder_service import ReminderService
 from .components import card, label
@@ -49,11 +49,15 @@ class MainWindow(QMainWindow):
         reminders: ReminderService | None = None,
         environment=None,
         symptom_service=None,
+        training_service=None,
+        statistics_service=None,
     ) -> None:
         super().__init__()
         self._tray, self._posture = tray, posture
         self._reminders, self._environment = reminders, environment
         self._symptom_service = symptom_service
+        self._training_service = training_service
+        self._statistics_service = statistics_service
         self._rendered_posture = None
         self._rendered_reminders = None
         self._allow_exit = False
@@ -196,8 +200,8 @@ class MainWindow(QMainWindow):
         self._stats_layout.setSpacing(12)
         self._page_layout.addLayout(self._stats_layout)
         self._next_value, self._next_hint = self._stat_card("bell", "下一个提醒", "等待确认", "35 / 40 分钟")
-        self._today_time, _ = self._stat_card("clock", "今日坐姿时长", "—", "统计功能尚未开放")
-        self._today_up, _ = self._stat_card("up", "今日起身次数", "—", "统计功能尚未开放")
+        self._today_time, self._today_time_hint = self._stat_card("clock", "今日坐姿时长", "—", "统计功能尚未开放")
+        self._today_up, self._today_up_hint = self._stat_card("up", "今日起身次数", "—", "统计功能尚未开放")
 
         self._side_panel, reminder_layout = card("reminderCard")
         self._page_layout.addWidget(self._side_panel)
@@ -224,7 +228,12 @@ class MainWindow(QMainWindow):
         self._page_layout.addLayout(self._quick_links)
         self._page_layout.addWidget(self._footer)
         self._page_layout.addStretch()
-        self._pages.update(build_pages(self, symptom_service=self._symptom_service))
+        self._pages.update(build_pages(
+            self,
+            symptom_service=self._symptom_service,
+            training_service=self._training_service,
+            statistics_service=self._statistics_service,
+        ))
         for key, content in self._pages.items():
             if key != "home":
                 self._body_layout.addWidget(content)
@@ -270,7 +279,7 @@ class MainWindow(QMainWindow):
         self._plant = Illustration("plant.svg")
         self._plant.setFixedSize(124, 124)
         layout.addWidget(self._plant, 0, Qt.AlignmentFlag.AlignCenter)
-        self._sidebar_quote = label("小小的改变\n带来更健康的未来", role="muted")
+        self._sidebar_quote = label(APP_SLOGAN, role="muted")
         layout.addWidget(self._sidebar_quote)
         self._version = label("V1 · 本地运行", role="muted")
         layout.addWidget(self._version)
@@ -409,6 +418,7 @@ class MainWindow(QMainWindow):
             self._layout_settler.start(0)
 
     def _refresh_posture(self) -> None:
+        self._refresh_statistics()
         self._footer.setText(
             "数据仅保存在本机 · 关闭窗口后仍在托盘运行"
             if self._tray.isVisible() else
@@ -477,6 +487,36 @@ class MainWindow(QMainWindow):
         if self._action_layout.count():
             set_property(self._action_layout.itemAt(0).widget(), "tone", tone)
         self._adapt_layout()
+
+    def _refresh_statistics(self):
+        if self._statistics_service is None:
+            return
+        try:
+            row = self._statistics_service.recent(7)[-1]
+        except Exception:
+            logging.getLogger(__name__).exception("Could not refresh home statistics")
+            self._today_time.setText("—")
+            self._today_time_hint.setText("统计读取失败")
+            self._today_up.setText("—")
+            self._today_up_hint.setText("统计读取失败")
+            return
+
+        if row.sitting_seconds is None:
+            self._today_time.setText("—")
+            self._today_time_hint.setText("暂无已闭合记录")
+        else:
+            minutes = row.sitting_seconds // 60
+            hours, remainder = divmod(minutes, 60)
+            value = f"{hours} 小时 {remainder} 分" if hours else f"{remainder} 分"
+            self._today_time.setText(value)
+            self._today_time_hint.setText("已确认坐姿时长")
+
+        if row.up_count is None:
+            self._today_up.setText("—")
+            self._today_up_hint.setText("暂无人工确认记录")
+        else:
+            self._today_up.setText(f"{row.up_count} 次")
+            self._today_up_hint.setText("人工确认起身次数")
 
     def _refresh_time_details(self, state, seconds):
         if state.sitting_since:

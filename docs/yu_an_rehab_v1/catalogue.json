@@ -1,0 +1,726 @@
+{
+  "meta": {
+    "name": "宇安｜康复资料与记录包",
+    "version": "1.0-draft",
+    "created_on": "2026-10-14",
+    "patient_context": "慧宇；用户称发病时间较短、影像提示神经根受压、连续坐姿上限40分钟，尚无具体训练动作医嘱。未核实病历。",
+    "purpose": "候选资料整理，不是个人训练处方",
+    "approved_exercise_count": 0,
+    "active_plan_count": 0,
+    "seed_policy": "INITIAL_APP_CATALOGUE_EMPTY; USER_INITIATED_CANDIDATE_IMPORT_ONLY",
+    "original_media_files_included": false,
+    "scope_note": "手工计划与详细日志字段是增补建议，未修改代码或执行迁移。",
+    "research_note": "沿用本对话前序资料检索；重新打包，不声称本次完成视频播放或临床审核。"
+  },
+  "sources": [
+    {
+      "id": "S01",
+      "title": "腰痛不要怕，康复医生教您居家康复",
+      "publisher": "北京协和医院",
+      "url": "https://www.pumch.cn/detail/38562.html",
+      "language": "中文",
+      "version_note": "2024-11-08",
+      "summary_zh": "腰痛科普及猫式等动作图示。",
+      "limitations": "不是慧宇的处方，不整套导入训练量。",
+      "source_reviewed_on": "2026-10-14",
+      "source_review_status": "PUBLISHER_PAGE_REVIEWED_IN_PRECEDING_RESEARCH",
+      "patient_specific_approval": false,
+      "redistribution_permission": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "S02",
+      "title": "Spine Conditioning Program",
+      "publisher": "AAOS / 美国骨科医师学会",
+      "url": "https://www.orthoinfo.org/recovery/spine-conditioning-program/",
+      "language": "英文",
+      "version_note": null,
+      "summary_zh": "包含腹部收紧、臀桥、鸟狗式等图示，供专业人员选取。",
+      "limitations": "通用脊柱训练资料，不等于对慧宇的个体化许可。",
+      "source_reviewed_on": "2026-10-14",
+      "source_review_status": "PUBLISHER_PAGE_REVIEWED_IN_PRECEDING_RESEARCH",
+      "patient_specific_approval": false,
+      "redistribution_permission": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "S03",
+      "title": "Exercises for sciatica problems",
+      "publisher": "NHS",
+      "url": "https://www.nhs.uk/live-well/exercise/exercises-sciatica-problems/",
+      "language": "英文页面",
+      "version_note": "网页/媒体复核：2026-03-02",
+      "summary_zh": "坐骨神经痛科普与动作视频入口。",
+      "limitations": "未完整播放、逐帧审看或核实字幕。",
+      "source_reviewed_on": "2026-10-14",
+      "source_review_status": "PUBLISHER_PAGE_REVIEWED_IN_PRECEDING_RESEARCH",
+      "patient_specific_approval": false,
+      "redistribution_permission": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "S04",
+      "title": "Low back pain: Physiotherapy and exercises",
+      "publisher": "Guy’s and St Thomas’ NHS Foundation Trust",
+      "url": "https://www.guysandstthomas.nhs.uk/health-information/low-back-pain/physiotherapy-and-exercises",
+      "language": "英文",
+      "version_note": "2024-03 / 4876-VER2",
+      "summary_zh": "屈膝摆动、抱膝、后伸图示及保持活动的科普视频。",
+      "limitations": "动作分别确认，不将网页全套内容视为个人方案。",
+      "source_reviewed_on": "2026-10-14",
+      "source_review_status": "PUBLISHER_PAGE_REVIEWED_IN_PRECEDING_RESEARCH",
+      "patient_specific_approval": false,
+      "redistribution_permission": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "S05",
+      "title": "Managing mechanical lower back pain",
+      "publisher": "Torbay and South Devon NHS Foundation Trust",
+      "url": "https://www.torbayandsouthdevon.nhs.uk/services/physiotherapy/support-videos/managing-mechanical-lower-back-pain/",
+      "language": "英文页面",
+      "version_note": null,
+      "summary_zh": "分别提供屈曲方向、后伸方向和力量训练视频。",
+      "limitations": "不能自动拼成跟练疗程；实际播放未验收。",
+      "source_reviewed_on": "2026-10-14",
+      "source_review_status": "PUBLISHER_PAGE_REVIEWED_IN_PRECEDING_RESEARCH",
+      "patient_specific_approval": false,
+      "redistribution_permission": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "S06",
+      "title": "專為肩頸、背部及下肢痛症而設的普拉提運動",
+      "publisher": "香港医院管理局 / 屯门医院",
+      "url": "https://www3.ha.org.hk/ntwc/msc/tc/ol/pep_bySpecialty_pt.html",
+      "language": "繁体中文目录",
+      "version_note": "目录年度：2025/26",
+      "summary_zh": "官方目录中的普拉提合集，保留为扩展候选。",
+      "limitations": "未核实单集动作、粤语/普通话音轨、字幕或播放。",
+      "source_reviewed_on": "2026-10-14",
+      "source_review_status": "PUBLISHER_PAGE_REVIEWED_IN_PRECEDING_RESEARCH",
+      "patient_specific_approval": false,
+      "redistribution_permission": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "S07",
+      "title": "腰部護理及運動手冊",
+      "publisher": "香港医院管理局 / 广华医院物理治疗部",
+      "url": "https://www3.ha.org.hk/kwh/main/files/pdf/PHYS_BackCare%26Exercise.pdf",
+      "language": "繁体中文",
+      "version_note": "2011-11",
+      "summary_zh": "历史图文手册，印刷页26有运动日志。",
+      "limitations": "仅参考资料组织与记录格式，不当作最新指南。",
+      "source_reviewed_on": "2026-10-14",
+      "source_review_status": "PUBLISHER_PAGE_REVIEWED_IN_PRECEDING_RESEARCH",
+      "patient_specific_approval": false,
+      "redistribution_permission": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "S08",
+      "title": "Low back pain and sciatica in over 16s: recommendations",
+      "publisher": "NICE",
+      "url": "https://www.nice.org.uk/guidance/ng59/chapter/Recommendations",
+      "language": "英文",
+      "version_note": "NG59；重点参照1.2.1、1.2.2",
+      "summary_zh": "选择运动应考虑个人需要、偏好与能力。",
+      "limitations": "指南不能代替个人动作处方。",
+      "source_reviewed_on": "2026-10-14",
+      "source_review_status": "PUBLISHER_PAGE_REVIEWED_IN_PRECEDING_RESEARCH",
+      "patient_specific_approval": false,
+      "redistribution_permission": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "S09",
+      "title": "Sciatica",
+      "publisher": "NHS",
+      "url": "https://www.nhs.uk/conditions/sciatica/",
+      "language": "英文",
+      "version_note": null,
+      "summary_zh": "用于神经相关症状和紧急就医警示核对。",
+      "limitations": "不构成完整分诊工具，中文发行文案需专业复核。",
+      "source_reviewed_on": "2026-10-14",
+      "source_review_status": "PUBLISHER_PAGE_REVIEWED_IN_PRECEDING_RESEARCH",
+      "patient_specific_approval": false,
+      "redistribution_permission": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "S10",
+      "title": "Low back pain",
+      "publisher": "NHS Dorset / Musculoskeletal Matters",
+      "url": "https://www.mskdorset.nhs.uk/back-pain_1/back-pain-low-back-pain/",
+      "language": "英文",
+      "version_note": null,
+      "summary_zh": "骨盆倾斜图及放松呼吸资料。",
+      "limitations": "不导入通用训练量；图片含第三方署名，权利另核对。",
+      "source_reviewed_on": "2026-10-14",
+      "source_review_status": "PUBLISHER_PAGE_REVIEWED_IN_PRECEDING_RESEARCH",
+      "patient_specific_approval": false,
+      "redistribution_permission": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "S11",
+      "title": "Linking (Free Use) Policy",
+      "publisher": "AAOS",
+      "url": "https://www.orthoinfo.org/about-orthoinfo/linking-policy/",
+      "language": "英文",
+      "version_note": null,
+      "summary_zh": "原站链接与再使用限制的核对入口。",
+      "limitations": "不能将公开可看等同于允许复制进安装包。",
+      "source_reviewed_on": "2026-10-14",
+      "source_review_status": "PUBLISHER_PAGE_REVIEWED_IN_PRECEDING_RESEARCH",
+      "patient_specific_approval": false,
+      "redistribution_permission": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "S12",
+      "title": "Content not covered by our standard terms and conditions",
+      "publisher": "NHS",
+      "url": "https://www.nhs.uk/our-policies/terms-and-conditions/content-not-licensed-for-re-use/",
+      "language": "英文",
+      "version_note": null,
+      "summary_zh": "部分图像和视频不适用一般再使用条款。",
+      "limitations": "NHS主站条款不能代表所有医院或第三方素材。",
+      "source_reviewed_on": "2026-10-14",
+      "source_review_status": "PUBLISHER_PAGE_REVIEWED_IN_PRECEDING_RESEARCH",
+      "patient_specific_approval": false,
+      "redistribution_permission": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "S13",
+      "title": "Slipped disc",
+      "publisher": "NHS",
+      "url": "https://www.nhs.uk/conditions/slipped-disc/",
+      "language": "英文",
+      "version_note": "网页复核：2024-04-24",
+      "summary_zh": "椎间盘相关症状、活动与就医说明。",
+      "limitations": "一般活动说明不替代个体化许可。",
+      "source_reviewed_on": "2026-10-14",
+      "source_review_status": "PUBLISHER_PAGE_REVIEWED_IN_PRECEDING_RESEARCH",
+      "patient_specific_approval": false,
+      "redistribution_permission": "NOT_ESTABLISHED"
+    }
+  ],
+  "exercises": [
+    {
+      "id": "YA-EX-001",
+      "name_zh": "步行与活动间歇",
+      "term_en": "Walking / activity breaks",
+      "category": "日常活动候选",
+      "source_ids": [
+        "S13",
+        "S08"
+      ],
+      "image_ids": [],
+      "related_videos": [
+        {
+          "id": "V01",
+          "relationship": "TOPIC_REFERENCE_NOT_VERIFIED_EXERCISE_SEGMENT"
+        },
+        {
+          "id": "V02",
+          "relationship": "TOPIC_REFERENCE_NOT_VERIFIED_EXERCISE_SEGMENT"
+        }
+      ],
+      "description_zh": "日常活动单独记录，不预设步数或分钟数。",
+      "review_questions": [
+        "目前是否允许步行，一次多长、何时休息？",
+        "站立或步行是否诱发腿部症状，是否需要辅助？"
+      ],
+      "content_version": 1,
+      "status": "CANDIDATE",
+      "executable": false,
+      "reminder_enabled": false,
+      "individual_approval_id": null,
+      "patient_prescription": null,
+      "translation_status": "AI_SUMMARY_NOT_CLINICALLY_REVIEWED"
+    },
+    {
+      "id": "YA-EX-002",
+      "name_zh": "放松呼吸",
+      "term_en": "Relaxed diaphragmatic breathing",
+      "category": "放松练习候选",
+      "source_ids": [
+        "S10"
+      ],
+      "image_ids": [],
+      "related_videos": [],
+      "description_zh": "放松呼吸资料入口，不预设强迫深呼吸或屏气训练。",
+      "review_questions": [
+        "采用什么体位，是否需要垫枕？",
+        "是否安排为独立练习；不适时如何处理？"
+      ],
+      "content_version": 1,
+      "status": "CANDIDATE",
+      "executable": false,
+      "reminder_enabled": false,
+      "individual_approval_id": null,
+      "patient_prescription": null,
+      "translation_status": "AI_SUMMARY_NOT_CLINICALLY_REVIEWED"
+    },
+    {
+      "id": "YA-EX-003",
+      "name_zh": "腹部收紧",
+      "term_en": "Abdominal bracing",
+      "category": "躯干控制候选",
+      "source_ids": [
+        "S02"
+      ],
+      "image_ids": [
+        "I01"
+      ],
+      "related_videos": [],
+      "description_zh": "腹部肌肉收紧图示，不等同于仰卧起坐。",
+      "review_questions": [
+        "具体用力方式与腰部位置怎样？",
+        "是否需要现场教学，怎样避免错误理解示意箭头？"
+      ],
+      "content_version": 1,
+      "status": "CANDIDATE",
+      "executable": false,
+      "reminder_enabled": false,
+      "individual_approval_id": null,
+      "patient_prescription": null,
+      "translation_status": "AI_SUMMARY_NOT_CLINICALLY_REVIEWED"
+    },
+    {
+      "id": "YA-EX-004",
+      "name_zh": "骨盆倾斜",
+      "term_en": "Pelvic tilt",
+      "category": "活动控制候选",
+      "source_ids": [
+        "S10"
+      ],
+      "image_ids": [
+        "I02"
+      ],
+      "related_videos": [],
+      "description_zh": "仰卧屈膝位骨盆活动的参考图示。",
+      "review_questions": [
+        "允许哪个方向和多大幅度？",
+        "与腹部收紧是否分开安排，怎样避免混淆？"
+      ],
+      "content_version": 1,
+      "status": "CANDIDATE",
+      "executable": false,
+      "reminder_enabled": false,
+      "individual_approval_id": null,
+      "patient_prescription": null,
+      "translation_status": "AI_SUMMARY_NOT_CLINICALLY_REVIEWED"
+    },
+    {
+      "id": "YA-EX-005",
+      "name_zh": "仰卧屈膝左右摆动",
+      "term_en": "Knee rolls",
+      "category": "旋转方向候选",
+      "source_ids": [
+        "S04"
+      ],
+      "image_ids": [
+        "I03"
+      ],
+      "related_videos": [],
+      "description_zh": "屈膝仰卧时左右摆动的动作参考。",
+      "review_questions": [
+        "目前是否允许腰部旋转？",
+        "单侧或双侧，终点位置和支撑方式怎样设置？"
+      ],
+      "content_version": 1,
+      "status": "CANDIDATE",
+      "executable": false,
+      "reminder_enabled": false,
+      "individual_approval_id": null,
+      "patient_prescription": null,
+      "translation_status": "AI_SUMMARY_NOT_CLINICALLY_REVIEWED"
+    },
+    {
+      "id": "YA-EX-006",
+      "name_zh": "仰卧单膝靠胸",
+      "term_en": "Single knee hug",
+      "category": "屈曲方向候选",
+      "source_ids": [
+        "S04"
+      ],
+      "image_ids": [
+        "I04"
+      ],
+      "related_videos": [
+        {
+          "id": "V03",
+          "relationship": "TOPIC_REFERENCE_NOT_VERIFIED_EXERCISE_SEGMENT"
+        }
+      ],
+      "description_zh": "单膝靠近胸部示范，与双膝抱胸分别确认。",
+      "review_questions": [
+        "当前是否适合屈曲方向？",
+        "出现腿痛、麻木或放射范围变化时如何处理？"
+      ],
+      "content_version": 1,
+      "status": "CANDIDATE",
+      "executable": false,
+      "reminder_enabled": false,
+      "individual_approval_id": null,
+      "patient_prescription": null,
+      "translation_status": "AI_SUMMARY_NOT_CLINICALLY_REVIEWED"
+    },
+    {
+      "id": "YA-EX-007",
+      "name_zh": "猫式活动",
+      "term_en": "Cat-style spinal mobility",
+      "category": "屈伸活动候选",
+      "source_ids": [
+        "S01"
+      ],
+      "image_ids": [
+        "I05"
+      ],
+      "related_videos": [],
+      "description_zh": "四点支撑下腰背活动的参考图示。",
+      "review_questions": [
+        "是否适合四点支撑及屈伸活动？",
+        "是否只允许部分方向或缩小幅度，如何保护手腕和膝部？"
+      ],
+      "content_version": 1,
+      "status": "CANDIDATE",
+      "executable": false,
+      "reminder_enabled": false,
+      "individual_approval_id": null,
+      "patient_prescription": null,
+      "translation_status": "AI_SUMMARY_NOT_CLINICALLY_REVIEWED"
+    },
+    {
+      "id": "YA-EX-008",
+      "name_zh": "臀桥",
+      "term_en": "Hip bridge",
+      "category": "力量训练候选",
+      "source_ids": [
+        "S02"
+      ],
+      "image_ids": [
+        "I06"
+      ],
+      "related_videos": [
+        {
+          "id": "V05",
+          "relationship": "TOPIC_REFERENCE_NOT_VERIFIED_EXERCISE_SEGMENT"
+        }
+      ],
+      "description_zh": "仰卧屈膝抬起骨盆的参考图示。",
+      "review_questions": [
+        "目前是否允许桥式，抬高到什么位置？",
+        "怎样判断动作质量，哪些反应要求停止？"
+      ],
+      "content_version": 1,
+      "status": "CANDIDATE",
+      "executable": false,
+      "reminder_enabled": false,
+      "individual_approval_id": null,
+      "patient_prescription": null,
+      "translation_status": "AI_SUMMARY_NOT_CLINICALLY_REVIEWED"
+    },
+    {
+      "id": "YA-EX-009",
+      "name_zh": "鸟狗式",
+      "term_en": "Bird dog",
+      "category": "对侧支撑候选",
+      "source_ids": [
+        "S02"
+      ],
+      "image_ids": [
+        "I07"
+      ],
+      "related_videos": [
+        {
+          "id": "V05",
+          "relationship": "TOPIC_REFERENCE_NOT_VERIFIED_EXERCISE_SEGMENT"
+        }
+      ],
+      "description_zh": "四点支撑后伸出对侧上肢与下肢的参考图示。",
+      "review_questions": [
+        "是否需要先采用简化变式？",
+        "保持时间、次数及躯干稳定标准如何设定？"
+      ],
+      "content_version": 1,
+      "status": "CANDIDATE",
+      "executable": false,
+      "reminder_enabled": false,
+      "individual_approval_id": null,
+      "patient_prescription": null,
+      "translation_status": "AI_SUMMARY_NOT_CLINICALLY_REVIEWED"
+    },
+    {
+      "id": "YA-EX-010",
+      "name_zh": "俯卧肘支撑",
+      "term_en": "Prone on elbows",
+      "category": "后伸方向候选",
+      "source_ids": [
+        "S04",
+        "S01"
+      ],
+      "image_ids": [
+        "I08"
+      ],
+      "related_videos": [
+        {
+          "id": "V04",
+          "relationship": "TOPIC_REFERENCE_NOT_VERIFIED_EXERCISE_SEGMENT"
+        }
+      ],
+      "description_zh": "肘支撑的后伸方向图示，不代表完整麦肯基评估方案。",
+      "review_questions": [
+        "目前是否适合后伸方向，应观察哪些症状反应？",
+        "是否只允许肘支撑，不自动升级为手撑后伸。"
+      ],
+      "content_version": 1,
+      "status": "CANDIDATE",
+      "executable": false,
+      "reminder_enabled": false,
+      "individual_approval_id": null,
+      "patient_prescription": null,
+      "translation_status": "AI_SUMMARY_NOT_CLINICALLY_REVIEWED"
+    }
+  ],
+  "images": [
+    {
+      "id": "I01",
+      "title": "腹部收紧",
+      "source_id": "S02",
+      "source_page_url": "https://www.orthoinfo.org/recovery/spine-conditioning-program/",
+      "asset_url": "https://www.orthoinfo.org/contentassets/9a58e369fb0a47fb8ddee529dba5d829/fig-10-compressor.jpg",
+      "exercise_id": "YA-EX-003",
+      "locator": "原网页第10项",
+      "delivery_mode": "LINK_ONLY",
+      "medical_review": "UNREVIEWED",
+      "reuse_permission": "NOT_ESTABLISHED",
+      "local_path": null,
+      "sha256": null
+    },
+    {
+      "id": "I02",
+      "title": "骨盆倾斜",
+      "source_id": "S10",
+      "source_page_url": "https://www.mskdorset.nhs.uk/back-pain_1/back-pain-low-back-pain/",
+      "asset_url": "https://www.mskdorset.nhs.uk/wp-content/uploads/2021/11/Picture-2.jpg",
+      "exercise_id": "YA-EX-004",
+      "locator": "网页Pelvic tilt；第三方署名Physiotools",
+      "delivery_mode": "LINK_ONLY",
+      "medical_review": "UNREVIEWED",
+      "reuse_permission": "NOT_ESTABLISHED",
+      "local_path": null,
+      "sha256": null
+    },
+    {
+      "id": "I03",
+      "title": "仰卧屈膝左右摆动",
+      "source_id": "S04",
+      "source_page_url": "https://www.guysandstthomas.nhs.uk/health-information/low-back-pain/physiotherapy-and-exercises",
+      "asset_url": "https://www.guysandstthomas.nhs.uk/sites/default/files/styles/wysiwyg_default_xs/public/2024-03/6.jpg.jpg?itok=KptN5jo7",
+      "exercise_id": "YA-EX-005",
+      "locator": "网页Knee rolls；单侧位置图，不是完整动作",
+      "delivery_mode": "LINK_ONLY",
+      "medical_review": "UNREVIEWED",
+      "reuse_permission": "NOT_ESTABLISHED",
+      "local_path": null,
+      "sha256": null
+    },
+    {
+      "id": "I04",
+      "title": "单膝靠胸",
+      "source_id": "S04",
+      "source_page_url": "https://www.guysandstthomas.nhs.uk/health-information/low-back-pain/physiotherapy-and-exercises",
+      "asset_url": "https://www.guysandstthomas.nhs.uk/sites/default/files/styles/wysiwyg_default_xs/public/2024-03/10.jpg.jpg?itok=8FhWNvo4",
+      "exercise_id": "YA-EX-006",
+      "locator": "网页Knee hugs；单侧示范",
+      "delivery_mode": "LINK_ONLY",
+      "medical_review": "UNREVIEWED",
+      "reuse_permission": "NOT_ESTABLISHED",
+      "local_path": null,
+      "sha256": null
+    },
+    {
+      "id": "I05",
+      "title": "猫式活动",
+      "source_id": "S01",
+      "source_page_url": "https://www.pumch.cn/detail/38562.html",
+      "asset_url": "https://www.pumch.cn/Uploads/Picture/2024/11/08/u672d650cab558.png",
+      "exercise_id": "YA-EX-007",
+      "locator": "网页猫式伸展插图；静态查看不能代替完整动作审查",
+      "delivery_mode": "LINK_ONLY",
+      "medical_review": "UNREVIEWED",
+      "reuse_permission": "NOT_ESTABLISHED",
+      "local_path": null,
+      "sha256": null
+    },
+    {
+      "id": "I06",
+      "title": "臀桥",
+      "source_id": "S02",
+      "source_page_url": "https://www.orthoinfo.org/recovery/spine-conditioning-program/",
+      "asset_url": "https://www.orthoinfo.org/contentassets/ba6ef79e071a40efb77592b7e1a54146/fig-9-compressor.jpg",
+      "exercise_id": "YA-EX-008",
+      "locator": "原网页第9项",
+      "delivery_mode": "LINK_ONLY",
+      "medical_review": "UNREVIEWED",
+      "reuse_permission": "NOT_ESTABLISHED",
+      "local_path": null,
+      "sha256": null
+    },
+    {
+      "id": "I07",
+      "title": "鸟狗式",
+      "source_id": "S02",
+      "source_page_url": "https://www.orthoinfo.org/recovery/spine-conditioning-program/",
+      "asset_url": "https://www.orthoinfo.org/contentassets/0d29930fbfb04b26ae474629e0c16b41/fig-6-compressor.jpg",
+      "exercise_id": "YA-EX-009",
+      "locator": "原网页第6项",
+      "delivery_mode": "LINK_ONLY",
+      "medical_review": "UNREVIEWED",
+      "reuse_permission": "NOT_ESTABLISHED",
+      "local_path": null,
+      "sha256": null
+    },
+    {
+      "id": "I08",
+      "title": "俯卧肘支撑",
+      "source_id": "S04",
+      "source_page_url": "https://www.guysandstthomas.nhs.uk/health-information/low-back-pain/physiotherapy-and-exercises",
+      "asset_url": "https://www.guysandstthomas.nhs.uk/sites/default/files/styles/wysiwyg_default_xs/public/2024-03/1.jpg.jpg?itok=f44i8BrG",
+      "exercise_id": "YA-EX-010",
+      "locator": "网页Back extensions；仅肘支撑变式",
+      "delivery_mode": "LINK_ONLY",
+      "medical_review": "UNREVIEWED",
+      "reuse_permission": "NOT_ESTABLISHED",
+      "local_path": null,
+      "sha256": null
+    }
+  ],
+  "videos": [
+    {
+      "id": "V01",
+      "title": "坐骨神经痛：建议与动作",
+      "source_id": "S03",
+      "landing_url": "https://www.nhs.uk/live-well/exercise/exercises-sciatica-problems/",
+      "player_url": null,
+      "role": "教育与候选动作",
+      "language_note": "英文页面；音轨和字幕待核实",
+      "verification": "OFFICIAL_LANDING_PAGE_AND_LINK_TARGET_ONLY",
+      "full_video_reviewed": false,
+      "playback_tested": false,
+      "approved_segment": null,
+      "duration_seconds": null,
+      "medical_review": "UNREVIEWED",
+      "local_path": null,
+      "sha256": null,
+      "reuse_permission": "NOT_ESTABLISHED",
+      "autoplay": false
+    },
+    {
+      "id": "V02",
+      "title": "腰痛时如何保持活动",
+      "source_id": "S04",
+      "landing_url": "https://www.guysandstthomas.nhs.uk/health-information/low-back-pain/physiotherapy-and-exercises",
+      "player_url": "https://www.youtube.com/watch?v=Vk-kDE7UMOQ",
+      "role": "健康教育",
+      "language_note": "英文页面；音轨和字幕待核实",
+      "verification": "OFFICIAL_LANDING_PAGE_AND_LINK_TARGET_ONLY",
+      "full_video_reviewed": false,
+      "playback_tested": false,
+      "approved_segment": null,
+      "duration_seconds": null,
+      "medical_review": "UNREVIEWED",
+      "local_path": null,
+      "sha256": null,
+      "reuse_permission": "NOT_ESTABLISHED",
+      "autoplay": false
+    },
+    {
+      "id": "V03",
+      "title": "脊柱活动：屈曲方向",
+      "source_id": "S05",
+      "landing_url": "https://www.torbayandsouthdevon.nhs.uk/services/physiotherapy/support-videos/managing-mechanical-lower-back-pain/",
+      "player_url": "https://player.vimeo.com/video/906408545?dnt=1",
+      "role": "方向性动作候选",
+      "language_note": "英文页面；音轨和字幕待核实",
+      "verification": "OFFICIAL_LANDING_PAGE_AND_LINK_TARGET_ONLY",
+      "full_video_reviewed": false,
+      "playback_tested": false,
+      "approved_segment": null,
+      "duration_seconds": null,
+      "medical_review": "UNREVIEWED",
+      "local_path": null,
+      "sha256": null,
+      "reuse_permission": "NOT_ESTABLISHED",
+      "autoplay": false
+    },
+    {
+      "id": "V04",
+      "title": "脊柱活动：后伸方向",
+      "source_id": "S05",
+      "landing_url": "https://www.torbayandsouthdevon.nhs.uk/services/physiotherapy/support-videos/managing-mechanical-lower-back-pain/",
+      "player_url": "https://player.vimeo.com/video/907499584?dnt=1",
+      "role": "方向性动作候选",
+      "language_note": "英文页面；音轨和字幕待核实",
+      "verification": "OFFICIAL_LANDING_PAGE_AND_LINK_TARGET_ONLY",
+      "full_video_reviewed": false,
+      "playback_tested": false,
+      "approved_segment": null,
+      "duration_seconds": null,
+      "medical_review": "UNREVIEWED",
+      "local_path": null,
+      "sha256": null,
+      "reuse_permission": "NOT_ESTABLISHED",
+      "autoplay": false
+    },
+    {
+      "id": "V05",
+      "title": "脊柱力量训练",
+      "source_id": "S05",
+      "landing_url": "https://www.torbayandsouthdevon.nhs.uk/services/physiotherapy/support-videos/managing-mechanical-lower-back-pain/",
+      "player_url": "https://player.vimeo.com/video/910099963?dnt=1",
+      "role": "力量动作候选",
+      "language_note": "英文页面；音轨和字幕待核实",
+      "verification": "OFFICIAL_LANDING_PAGE_AND_LINK_TARGET_ONLY",
+      "full_video_reviewed": false,
+      "playback_tested": false,
+      "approved_segment": null,
+      "duration_seconds": null,
+      "medical_review": "UNREVIEWED",
+      "local_path": null,
+      "sha256": null,
+      "reuse_permission": "NOT_ESTABLISHED",
+      "autoplay": false
+    },
+    {
+      "id": "V06",
+      "title": "肩颈、背部及下肢痛症普拉提合集",
+      "source_id": "S06",
+      "landing_url": "https://www3.ha.org.hk/ntwc/msc/tc/ol/pep_bySpecialty_pt.html",
+      "player_url": "https://www.youtube.com/playlist?list=PLU44Qbt53BJvyKcVYze4D_MizRmz_AvPm",
+      "role": "扩展候选",
+      "language_note": "中文目录；粤语/普通话/字幕均待核实",
+      "verification": "OFFICIAL_LANDING_PAGE_AND_LINK_TARGET_ONLY",
+      "full_video_reviewed": false,
+      "playback_tested": false,
+      "approved_segment": null,
+      "duration_seconds": null,
+      "medical_review": "UNREVIEWED",
+      "local_path": null,
+      "sha256": null,
+      "reuse_permission": "NOT_ESTABLISHED",
+      "autoplay": false
+    }
+  ],
+  "document_links": [
+    {
+      "id": "D01",
+      "title": "AAOS脊柱训练PDF",
+      "source_id": "S02",
+      "url": "https://www.orthoinfo.org/globalassets/pdfs/spine-conditioning-program_3-20-25.pdf",
+      "note": "版本标识来自官网文件名；不导入整套训练量。"
+    },
+    {
+      "id": "D02",
+      "title": "广华医院腰部护理及运动手册（2011）",
+      "source_id": "S07",
+      "url": "https://www3.ha.org.hk/kwh/main/files/pdf/PHYS_BackCare%26Exercise.pdf",
+      "note": "历史资料，记录格式参考，不当作最新指南。"
+    }
+  ],
+  "approvals": [],
+  "active_plans": []
+}

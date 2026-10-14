@@ -20,6 +20,8 @@ from rehab_assistant.storage.database import open_database
 from rehab_assistant.services.posture_service import PostureService
 from rehab_assistant.services.reminder_service import ReminderService
 from rehab_assistant.services.symptom_service import SymptomService
+from rehab_assistant.services.exercise_service import ExerciseService
+from rehab_assistant.services.statistics_service import StatisticsService
 from rehab_assistant.ui.main_window import MainWindow
 from rehab_assistant.ui.widgets import brand_icon
 from rehab_assistant.ui.tray_menu import build_tray_menu
@@ -111,6 +113,8 @@ def main() -> int:
         database = open_database(directory / "assistant.sqlite3")
         posture = PostureService(database)
         symptoms = SymptomService(database)
+        exercises = ExerciseService(database)
+        statistics = StatisticsService(database)
     except Exception as error:
         print(f"应用初始化失败：{error}；数据目录：{directory}", file=sys.stderr)
         logging.getLogger(__name__).exception("Application initialization failed")
@@ -126,7 +130,7 @@ def main() -> int:
     tray.setToolTip(APP_NAME)
     reminders = ReminderService(database, posture, TrayNotificationChannel(tray))
     environment = WindowsEnvironmentMonitor()
-    window = MainWindow(tray, posture, reminders, environment, symptoms)
+    window = MainWindow(tray, posture, reminders, environment, symptoms, exercises, statistics)
     environment._window = window
     environment.start(
         lambda event_type, payload: posture.observe_environment(event_type, payload)

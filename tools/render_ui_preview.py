@@ -23,6 +23,7 @@ def main():
     from rehab_assistant.app import MainWindow
     from rehab_assistant.services.posture_service import PostureService
     from rehab_assistant.services.reminder_service import ReminderService
+    from rehab_assistant.services.statistics_service import StatisticsService
     from rehab_assistant.storage.database import migrate
 
     class PreviewClock:
@@ -60,8 +61,9 @@ def main():
         if interrupted:
             posture.observe_environment("sleep_started")
         reminders = ReminderService(connection, posture, SilentChannel(), clock=clock)
+        statistics = StatisticsService(connection, clock=clock, local_timezone=timezone.utc)
         tray = QSystemTrayIcon()
-        window = MainWindow(tray, posture, reminders)
+        window = MainWindow(tray, posture, reminders, statistics_service=statistics)
         window._refresh_timer.stop()
         window.resize(*size)
         window.show()

@@ -12,6 +12,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QBoxLayout, QLabel, QPushButton, QScrollArea, QSystemTrayIcon
 
+from rehab_assistant import APP_NAME, APP_SLOGAN
 from rehab_assistant.app import MainWindow
 from rehab_assistant.services.posture_service import PostureService
 from rehab_assistant.services.reminder_service import ReminderService
@@ -70,6 +71,13 @@ class MainWindowDesignTests(unittest.TestCase):
     def refresh(self):
         self.window._refresh_posture()
         self.application.processEvents()
+
+    def test_product_name_and_slogan_are_used_in_main_window(self):
+        self.assertEqual(APP_NAME, "宇安")
+        self.assertEqual(APP_SLOGAN, "予慧宇，一份日常的安心")
+        self.assertEqual(APP_NAME, self.window.windowTitle())
+        self.assertEqual(APP_NAME, self.window._brand_title.text())
+        self.assertEqual(APP_SLOGAN, self.window._sidebar_quote.text())
 
     def test_unknown_never_displays_an_invented_timer(self):
         self.assertEqual("--:--", self.window._elapsed.text())

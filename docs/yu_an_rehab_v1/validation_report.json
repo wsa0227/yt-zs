@@ -1,0 +1,22 @@
+{
+  "package_structure": "PASS",
+  "candidate_exercises": 10,
+  "image_links": 8,
+  "video_or_playlist_links": 6,
+  "handbook_links": 2,
+  "approved_exercises": 0,
+  "active_plans": 0,
+  "original_media_files_bundled": false,
+  "json_and_cross_reference_check": "PASS",
+  "html_automatic_external_requests": "NONE_BY_STATIC_INSPECTION",
+  "medical_review": "NOT_PERFORMED",
+  "video_playback": "NOT_PERFORMED",
+  "application_import": "NOT_PERFORMED",
+  "windows_integration": "NOT_PERFORMED",
+  "docx_visual_qa": "PASS: 5 pages rendered and visually checked; final pages 1,2,4,5 byte-identical to inspected images; corrected page 3 re-inspected.",
+  "html_static_qa": {
+    "searchable_cards": 16,
+    "local_file_links": "PASS",
+    "browser_execution": "NOT_TESTED_IN_REPACK"
+  }
+}

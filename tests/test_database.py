@@ -21,6 +21,7 @@ class DatabaseMigrationTests(unittest.TestCase):
             ).fetchall()
         }
         self.assertTrue({"environment_events", "reminder_deliveries"} <= tables)
+        self.assertTrue({"exercises", "exercise_plans", "exercise_logs"} <= tables)
         columns = {
             row[1] for row in connection.execute(
                 "PRAGMA table_info(reminder_deliveries)"

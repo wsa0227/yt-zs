@@ -3,13 +3,18 @@ import logging
 from datetime import date
 
 from PySide6.QtCore import QDate, QSize, Qt
+from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
     QAbstractItemView, QBoxLayout, QCheckBox, QComboBox, QDateEdit, QDialog,
-    QFileDialog, QGridLayout, QHeaderView, QHBoxLayout, QLayout, QMessageBox,
+    QDialogButtonBox, QFileDialog, QGridLayout, QHeaderView, QHBoxLayout, QInputDialog,
+    QLayout, QLineEdit, QMessageBox,
     QPushButton, QSizePolicy, QSlider, QTableWidget, QTableWidgetItem,
     QTabWidget, QTextEdit, QToolButton, QVBoxLayout, QWidget,
 )
+from rehab_assistant import APP_NAME
+from rehab_assistant.domain.exercises import ExerciseRecord, SYMPTOM_CHANGES
 from rehab_assistant.domain.symptoms import SymptomRecord
+from rehab_assistant.domain.statistics import DailyStatistics
 from rehab_assistant.safety.symptom_rules import evaluate_symptoms
 from .components import card, label
 from .theme import COLORS
@@ -109,9 +114,134 @@ class DesignPage(QWidget):
         self.body.invalidate()
         self.body.activate()
 
-    def finish(self):
-        self.body.addWidget(label("数据保留在本机 · 页面占位不生成健康记录，也不安排训练", role="muted"))
+    def finish(self, footer="数据保留在本机 · 页面占位不生成健康记录，也不安排训练"):
+        self.body.addWidget(label(footer, role="muted"))
         self.body.addStretch()
+
+
+class StatisticsChart(QWidget):
+    """Small native Qt chart that preserves gaps instead of drawing fake zeroes."""
+
+    def __init__(self, mode: str, parent=None):
+        super().__init__(parent)
+        self.mode = mode
+        self._rows: tuple[DailyStatistics, ...] = ()
+        self.setMinimumHeight(220)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.setAccessibleName("统计趋势图")
+
+    def set_rows(self, rows: tuple[DailyStatistics, ...]) -> None:
+        self._rows = rows
+        self.setToolTip(self._tooltip_text())
+        self.update()
+
+    def sizeHint(self):
+        return QSize(640, 220)
+
+    def _value(self, row: DailyStatistics) -> float | None:
+        if self.mode == "sitting":
+            return None if row.sitting_seconds is None else row.sitting_seconds / 60
+        if self.mode == "symptoms":
+            return None if not row.symptom_recorded or row.pain_score is None else float(row.pain_score)
+        return None if row.up_count is None else float(row.up_count)
+
+    def _unit(self) -> str:
+        return {"sitting": "分钟", "symptoms": "分", "up": "次"}[self.mode]
+
+    def _tooltip_text(self) -> str:
+        if not self._rows:
+            return "暂无统计数据"
+        entries = []
+        for row in self._rows:
+            value = self._value(row)
+            entries.append(f"{row.record_date_local}：{value:g} {self._unit()}" if value is not None
+                           else f"{row.record_date_local}：暂无记录")
+        return "\n".join(entries)
+
+    def paintEvent(self, event):  # noqa: N802 - Qt API name
+        del event
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.fillRect(self.rect(), QColor(COLORS["surface"]))
+        left, top, right, bottom = 48, 18, 18, 36
+        plot = self.rect().adjusted(left, top, -right, -bottom)
+        if plot.width() <= 0 or plot.height() <= 0:
+            return
+
+        painter.setPen(QPen(QColor(COLORS["border"]), 1))
+        painter.drawLine(plot.left(), plot.bottom(), plot.right(), plot.bottom())
+        painter.drawLine(plot.left(), plot.top(), plot.left(), plot.bottom())
+        if not self._rows:
+            self._draw_centered(painter, plot, "暂无记录")
+            return
+
+        values = [self._value(row) for row in self._rows]
+        present = [value for value in values if value is not None]
+        if not present:
+            self._draw_centered(painter, plot, "暂无已确认记录")
+            return
+        maximum = max(present)
+        if self.mode == "symptoms":
+            maximum = 10
+        else:
+            maximum = max(1.0, maximum)
+        color = QColor(COLORS["green"] if self.mode == "sitting" else COLORS["primary"])
+        if self.mode == "symptoms":
+            color = QColor(COLORS["warning"])
+
+        count = len(self._rows)
+        step = plot.width() / max(1, count)
+        points: list[tuple[float, float] | None] = []
+        for index, value in enumerate(values):
+            x = plot.left() + step * (index + 0.5)
+            if value is None:
+                points.append(None)
+                continue
+            y = plot.bottom() - (value / maximum) * plot.height()
+            points.append((x, y))
+            if self.mode in ("sitting", "up"):
+                bar_width = max(8.0, min(30.0, step * 0.46))
+                painter.setPen(Qt.PenStyle.NoPen)
+                painter.setBrush(color)
+                painter.drawRoundedRect(
+                    int(x - bar_width / 2), int(y), int(bar_width),
+                    max(2, int(plot.bottom() - y)), 4, 4,
+                )
+
+        if self.mode == "symptoms":
+            painter.setPen(QPen(color, 2))
+            previous = None
+            for point in points:
+                if point is None:
+                    previous = None
+                    continue
+                if previous is not None:
+                    painter.drawLine(int(previous[0]), int(previous[1]), int(point[0]), int(point[1]))
+                painter.setBrush(color)
+                painter.drawEllipse(int(point[0] - 4), int(point[1] - 4), 8, 8)
+                previous = point
+
+        painter.setPen(QColor(COLORS["muted"]))
+        painter.setFont(self.font())
+        label_step = max(1, count // 6)
+        for index, row in enumerate(self._rows):
+            if index % label_step != 0 and index != count - 1:
+                continue
+            x = plot.left() + step * (index + 0.5)
+            painter.drawText(int(x - 32), plot.bottom() + 10, 64, 22,
+                             Qt.AlignmentFlag.AlignHCenter, row.record_date_local[5:])
+        painter.drawText(0, plot.top() - 2, left - 8, 20, Qt.AlignmentFlag.AlignRight,
+                         self._axis_maximum(maximum))
+        painter.drawText(0, plot.bottom() - 10, left - 8, 20, Qt.AlignmentFlag.AlignRight, "0")
+
+    @staticmethod
+    def _axis_maximum(value: float) -> str:
+        return f"{value:g}"
+
+    @staticmethod
+    def _draw_centered(painter: QPainter, plot, text: str) -> None:
+        painter.setPen(QColor(COLORS["muted"]))
+        painter.drawText(plot, Qt.AlignmentFlag.AlignCenter, text)
 
 
 def pending_button(text, parent_layout, reason="业务尚未接入，本轮不能执行此操作"):
@@ -461,60 +591,387 @@ def symptoms_page(symptom_service=None):
     return page
 
 
-def training_page():
+def _exercise_editor(parent):
+    dialog = QDialog(parent)
+    dialog.setWindowTitle("添加训练资料候选")
+    dialog.setMinimumWidth(520)
+    body = QVBoxLayout(dialog)
+    body.setContentsMargins(24, 24, 24, 24)
+    body.setSpacing(12)
+    body.addWidget(label("只录入你已有的专业资料；程序不会替你判断动作是否适合。", role="muted"))
+
+    fields = {}
+    for key, title, placeholder in (
+        ("name", "资料名称", "例如：医生提供的动作资料"),
+        ("source_org", "来源机构 / 提供者", "请填写资料来源"),
+        ("source_url", "视频 / 图文链接（可选）", "可留空，链接不会被程序验证"),
+    ):
+        body.addWidget(label(title, role="field"))
+        field = QLineEdit()
+        field.setPlaceholderText(placeholder)
+        field.setAccessibleName(title)
+        fields[key] = field
+        body.addWidget(field)
+    body.addWidget(label("动作内容 / 执行说明", role="field"))
+    content = QTextEdit()
+    content.setPlaceholderText("粘贴或整理专业人员提供的图文、视频说明")
+    fields["content"] = content
+    body.addWidget(content)
+    body.addWidget(label("禁忌与注意事项", role="field"))
+    cautions = QTextEdit()
+    cautions.setPlaceholderText("例如：出现不适立即停止，并联系专业人员")
+    fields["contraindication_notes"] = cautions
+    body.addWidget(cautions)
+    error = label(role="errorMessage")
+    error.hide()
+    body.addWidget(error)
+    buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
+    buttons.accepted.connect(dialog.accept)
+    buttons.rejected.connect(dialog.reject)
+    body.addWidget(buttons)
+    if dialog.exec() != QDialog.DialogCode.Accepted:
+        return None
+    values = {key: widget.toPlainText() if isinstance(widget, QTextEdit) else widget.text()
+              for key, widget in fields.items()}
+    values.update({"id": None, "reviewer": None, "approved_at_utc": None,
+                   "status": "CANDIDATE", "created_at_utc": None, "updated_at_utc": None})
+    return ExerciseRecord(**values)
+
+
+def _training_log_editor(parent):
+    dialog = QDialog(parent)
+    dialog.setWindowTitle("记录训练结果")
+    dialog.setMinimumWidth(500)
+    body = QVBoxLayout(dialog)
+    body.setContentsMargins(24, 24, 24, 24)
+    body.setSpacing(12)
+    completed = QCheckBox("本次完成")
+    completed.setChecked(True)
+    body.addWidget(completed)
+    body.addWidget(label("本次感受", role="field"))
+    response = QTextEdit()
+    response.setPlaceholderText("如出现不适，请写明并立即停止相关训练")
+    body.addWidget(response)
+    body.addWidget(label("症状变化", role="field"))
+    change = QComboBox()
+    change.addItems(SYMPTOM_CHANGES)
+    body.addWidget(change)
+    body.addWidget(label("备注", role="field"))
+    notes = QTextEdit()
+    notes.setPlaceholderText("可选")
+    body.addWidget(notes)
+    buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
+    buttons.accepted.connect(dialog.accept)
+    buttons.rejected.connect(dialog.reject)
+    body.addWidget(buttons)
+    if dialog.exec() != QDialog.DialogCode.Accepted:
+        return None
+    return {
+        "completed": completed.isChecked(), "user_response": response.toPlainText().strip(),
+        "symptom_change": change.currentText(), "notes": notes.toPlainText(),
+    }
+
+
+def training_page(training_service=None):
     page = DesignPage("康复训练", "资料候选与执行计划分开；未经专业确认，不安排训练。", "Phase 4B：训练库与计划，")
     page.tab_widget, (library, plan) = tabs(page.body, ("康复动作", "我的计划"))
-    library.addWidget(label("下列为设计稿动作卡占位，不是实际动作资料或对你的训练建议。", role="muted"))
-    for name in ("猫牛式", "桥式", "腰部拉伸"):
-        frame, body = card()
-        row = page.row(body)
-        image = label("动作插图\n待提供", role="artPlaceholder")
-        image.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        row.addWidget(image)
-        detail = QVBoxLayout()
-        detail.addWidget(label(f"{name}（设计占位）", role="section"))
-        detail.addWidget(label("来源 / 图文 / 注意事项 / 专业确认信息尚未接入", role="muted"))
-        detail.addWidget(label("待专业确认 · 不可执行", role="stage"))
-        row.addLayout(detail, 1)
-        library.addWidget(frame)
-    pending_button("添加动作资料 · 待实现", library)
-    library.addWidget(label("专业确认状态由用户手动录入，程序无法验证。初始可执行训练为空；这里的占位动作不进入执行计划。", role="muted"))
-    empty, body = card()
-    body.addWidget(label("尚无可执行训练计划", role="section"))
-    body.addWidget(label("计划服务待实现。后续仅允许专业人员确认过的动作加入计划；出现不适时可立即停止并记录。", role="muted"))
-    for text in ("启用训练提醒 · 待实现", "训练日志 / 不适 · 待实现"):
-        pending_button(text, body)
-    plan.addWidget(empty)
-    plan.addStretch()
-    page.finish()
+    library.addWidget(label(
+        "专业确认状态由用户手动录入，程序无法验证。设计稿示例动作仍是占位，不是训练建议。",
+        role="muted",
+    ))
+    add_button = QPushButton("添加资料候选")
+    add_button.setMinimumHeight(44)
+    add_button.setEnabled(training_service is not None)
+    add_button.setToolTip("录入已有的专业资料；不会自动推荐或排程")
+    library.addWidget(add_button)
+    library_dynamic = QVBoxLayout()
+    library_dynamic.setSpacing(12)
+    library.addLayout(library_dynamic)
+
+    plan_dynamic = QVBoxLayout()
+    plan_dynamic.setSpacing(12)
+    plan.addLayout(plan_dynamic)
+    page._training_service = training_service
+
+    def clear_dynamic(layout):
+        while layout.count():
+            item = layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+    def show_error(message):
+        QMessageBox.warning(page, "未保存", message)
+
+    def refresh():
+        clear_dynamic(library_dynamic)
+        clear_dynamic(plan_dynamic)
+        if training_service is None:
+            for name in ("猫牛式", "桥式", "腰部拉伸"):
+                frame, body = card()
+                row = page.row(body)
+                image = label("动作插图\n待提供", role="artPlaceholder")
+                image.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                row.addWidget(image)
+                detail = QVBoxLayout()
+                detail.addWidget(label(f"{name}（设计占位）", role="section"))
+                detail.addWidget(label("来源 / 图文 / 注意事项 / 专业确认信息尚未接入", role="muted"))
+                detail.addWidget(label("待专业确认 · 不可执行", role="stage"))
+                row.addLayout(detail, 1)
+                library_dynamic.addWidget(frame)
+            library_dynamic.addWidget(label(
+                "初始可执行训练为空；这里的占位动作不进入执行计划。", role="muted"
+            ))
+            empty, body = card()
+            body.addWidget(label("尚无可执行训练计划", role="section"))
+            body.addWidget(label("计划服务尚未接入；当前页面不会执行训练。", role="muted"))
+            plan_dynamic.addWidget(empty)
+            return
+
+        records = training_service.list_exercises()
+        if not records:
+            library_dynamic.addWidget(label("尚无已录入的训练资料候选", role="section"))
+            library_dynamic.addWidget(label(
+                "请先向专业人员取得资料，再在此录入。初始执行计划为空。", role="muted"
+            ))
+        for record in records:
+            frame, body = card()
+            body.addWidget(label(record.name, role="section"))
+            body.addWidget(label(f"来源：{record.source_org}" + (f" · {record.source_url}" if record.source_url else ""), role="muted"))
+            body.addWidget(label(record.content, role="muted"))
+            body.addWidget(label(f"注意事项：{record.contraindication_notes or '未填写'}", role="muted"))
+            status_text = {"CANDIDATE": "待专业确认 · 不可执行", "APPROVED": "已录入专业确认 · 可加入计划", "SUSPENDED": "已停用 · 不可执行"}[record.status]
+            body.addWidget(label(status_text, role="stage"))
+            actions = page.row(body)
+            if record.status == "CANDIDATE":
+                approve_button = QPushButton("录入专业确认")
+                approve_button.setMinimumHeight(44)
+                approve_button.clicked.connect(lambda _=False, item=record: approve(item))
+                actions.addWidget(approve_button)
+            elif record.status == "APPROVED":
+                plan_entry = training_service.get_plan(record.id)
+                add_plan = QPushButton("已在计划中" if plan_entry else "加入我的计划")
+                add_plan.setMinimumHeight(44)
+                add_plan.setEnabled(plan_entry is None)
+                add_plan.clicked.connect(lambda _=False, item=record: add_to_plan(item))
+                actions.addWidget(add_plan)
+                suspend_button = QPushButton("停用资料")
+                suspend_button.setMinimumHeight(44)
+                suspend_button.setProperty("tone", "danger")
+                suspend_button.clicked.connect(lambda _=False, item=record: suspend(item))
+                actions.addWidget(suspend_button)
+            library_dynamic.addWidget(frame)
+
+        plans = training_service.list_plans()
+        if not plans:
+            empty, body = card()
+            body.addWidget(label("尚无可执行训练计划", role="section"))
+            body.addWidget(label("只有已录入专业确认的资料才能加入计划；程序不会自动安排训练。", role="muted"))
+            plan_dynamic.addWidget(empty)
+        else:
+            records_by_id = {item.id: item for item in records}
+            for entry in plans:
+                exercise = records_by_id.get(entry.exercise_id) or training_service.get_by_id(entry.exercise_id)
+                if exercise is None:
+                    continue
+                frame, body = card()
+                body.addWidget(label(exercise.name, role="section"))
+                body.addWidget(label("状态：" + ("执行计划中" if entry.status == "ACTIVE" else "已停止"), role="stage"))
+                actions = page.row(body)
+                if entry.status == "ACTIVE":
+                    log_button = QPushButton("记录本次训练")
+                    log_button.setMinimumHeight(44)
+                    log_button.clicked.connect(lambda _=False, item=exercise: record_log(item))
+                    actions.addWidget(log_button)
+                    stop_button = QPushButton("停止计划")
+                    stop_button.setMinimumHeight(44)
+                    stop_button.clicked.connect(lambda _=False, item=exercise: stop_plan(item))
+                    actions.addWidget(stop_button)
+                else:
+                    actions.addWidget(label(f"{entry.stop_reason}。不会再产生训练提醒。", role="muted"))
+                plan_dynamic.addWidget(frame)
+
+    def approve(record):
+        reviewer, accepted = QInputDialog.getText(page, "录入专业确认", "专业人员姓名 / 标识：")
+        if not accepted:
+            return
+        try:
+            training_service.approve(record.id, reviewer)
+        except (ValueError, LookupError) as error:
+            show_error(str(error))
+            return
+        refresh()
+
+    def add_to_plan(record):
+        try:
+            training_service.add_to_plan(record.id)
+        except (ValueError, LookupError) as error:
+            show_error(str(error))
+            return
+        refresh()
+        page.tab_widget.setCurrentIndex(1)
+
+    def suspend(record):
+        answer = QMessageBox.question(page, "停用训练资料", f"停用“{record.name}”？活动计划也会停止。")
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            training_service.suspend(record.id, "用户主动停用")
+        except (ValueError, LookupError) as error:
+            show_error(str(error))
+            return
+        refresh()
+
+    def stop_plan(record):
+        try:
+            training_service.stop_plan(record.id)
+        except (ValueError, LookupError) as error:
+            show_error(str(error))
+            return
+        refresh()
+
+    def record_log(record):
+        values = _training_log_editor(page)
+        if values is None:
+            return
+        if not values["user_response"]:
+            show_error("请填写本次感受；如有不适，请先停止相关训练。")
+            return
+        try:
+            training_service.record_log(record.id, **values)
+        except (ValueError, LookupError) as error:
+            show_error(str(error))
+            return
+        QMessageBox.information(page, "已记录", "本次训练记录已保存在本机。")
+
+    def add_candidate():
+        record = _exercise_editor(page)
+        if record is None:
+            return
+        try:
+            training_service.save_candidate(record)
+        except ValueError as error:
+            show_error(str(error))
+            return
+        refresh()
+
+    add_button.clicked.connect(add_candidate)
+    page.refresh_training = refresh
+    refresh()
+    page.finish("训练资料和日志保存在本机 · 不自动推荐、不自动排程；出现不适可立即停止并记录")
     return page
 
 
-def statistics_page():
+def statistics_page(statistics_service=None):
     page = DesignPage("数据统计", "查看坐姿时长、症状变化与起身次数；不自动判断病情改善。", "Phase 4C：统计与趋势，")
     period = QComboBox()
     period.addItems(("最近 7 天", "最近 30 天"))
-    period.setAccessibleName("统计时间范围，数据待接入")
+    period.setAccessibleName("统计时间范围")
+    period.setToolTip("只读取本机已保存记录；缺失日期不会补成 0")
     page.body.addWidget(period)
     page.tab_widget, bodies = tabs(page.body, ("坐姿时长", "症状变化", "起身次数"))
-    for title, body in zip(("坐姿时长", "症状变化", "起身次数"), bodies):
+    page._statistics_service = statistics_service
+    page._statistics_period = period
+    page._statistics_charts = {}
+    page._statistics_metrics = {}
+
+    definitions = (
+        ("sitting", "坐姿时长", ("已确认坐姿总时长", "有已确认数据的天数")),
+        ("symptoms", "症状变化", ("已记录天数", "有疼痛评分的天数")),
+        ("up", "起身次数", ("已确认起身次数", "有起身数据的天数")),
+    )
+    for mode, title, metric_names, body in zip(
+        (item[0] for item in definitions),
+        (item[1] for item in definitions),
+        (item[2] for item in definitions),
+        bodies,
+    ):
         panel, chart = card()
         chart.addWidget(label(f"{title}趋势", role="section"))
-        placeholder = label("趋势图占位\n\n统计服务尚未接入\n不生成演示曲线，也不把缺失记录补为 0", role="chartPlaceholder")
-        placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        placeholder.setMinimumHeight(200)
-        chart.addWidget(placeholder)
+        trend = StatisticsChart(mode)
+        chart.addWidget(trend)
+        page._statistics_charts[mode] = trend
         row = page.row(chart)
-        for name in ("日均坐姿时长", "日均起身次数") if title != "症状变化" else ("记录天数", "疼痛评分"):
+        page._statistics_metrics[mode] = []
+        for name in metric_names:
             metric, box = card()
             box.addWidget(label(name, role="muted"))
-            box.addWidget(label("—", role="metric"))
-            box.addWidget(label("数据待接入", role="muted"))
+            value = label("—", role="metric")
+            hint = label("统计服务未接入" if statistics_service is None else "暂无记录", role="muted")
+            box.addWidget(value)
+            box.addWidget(hint)
+            page._statistics_metrics[mode].append((value, hint))
             row.addWidget(metric, 1)
         body.addWidget(panel)
         body.addStretch()
-    pending_button("导出统计 · 待实现", page.body)
-    page.finish()
+
+    page.feedback = label(role="muted")
+    page.feedback.hide()
+    page.body.addWidget(page.feedback)
+
+    def format_minutes(seconds):
+        if seconds is None:
+            return "—"
+        minutes = seconds // 60
+        hours, remainder = divmod(minutes, 60)
+        return f"{hours} 小时 {remainder} 分" if hours else f"{remainder} 分"
+
+    def set_metric(mode, index, value, hint):
+        metric, metric_hint = page._statistics_metrics[mode][index]
+        metric.setText(value)
+        metric_hint.setText(hint)
+
+    def refresh():
+        days = 7 if period.currentIndex() == 0 else 30
+        if statistics_service is None:
+            rows = ()
+            page.status.setText("统计页已搭建 · 统计服务尚未接入")
+            page.feedback.setText("当前仅展示页面结构；不生成演示曲线，也不把缺失记录补为 0。")
+            page.feedback.show()
+        else:
+            try:
+                rows = statistics_service.recent(days)
+            except Exception:
+                logging.getLogger(__name__).exception("Could not load statistics")
+                rows = ()
+                page.feedback.setText("统计读取失败，未显示伪造结果；详见本机日志。")
+                page.feedback.show()
+            else:
+                page.status.setText("统计服务已接入 · 仅展示本机已保存记录")
+                page.feedback.setText(
+                    "未知区间单独展示，不计入已确认坐姿；统计不代表病情改善或医疗结论。"
+                )
+                page.feedback.show()
+
+        for chart in page._statistics_charts.values():
+            chart.set_rows(rows)
+
+        if statistics_service is None:
+            for mode in page._statistics_metrics:
+                for index in range(2):
+                    set_metric(mode, index, "—", "统计服务未接入")
+            return
+
+        confirmed_sitting = [row.sitting_seconds for row in rows if row.sitting_seconds is not None]
+        uncertain_sitting = [row.uncertain_sitting_seconds for row in rows if row.uncertain_sitting_seconds is not None]
+        symptom_rows = [row for row in rows if row.symptom_recorded]
+        scored_rows = [row for row in symptom_rows if row.pain_score is not None]
+        up_rows = [row for row in rows if row.up_count is not None]
+        total_sitting = sum(confirmed_sitting) if confirmed_sitting else None
+        total_up = sum(row.up_count for row in up_rows) if up_rows else None
+        set_metric("sitting", 0, format_minutes(total_sitting), f"{len(confirmed_sitting)} 天有已确认记录")
+        if uncertain_sitting:
+            set_metric("sitting", 1, str(len(confirmed_sitting)), f"另有 {format_minutes(sum(uncertain_sitting))} 未知区间")
+        else:
+            set_metric("sitting", 1, str(len(confirmed_sitting)) if confirmed_sitting else "—", "按本地日期统计")
+        set_metric("symptoms", 0, str(len(symptom_rows)) if symptom_rows else "—", "未填写疼痛评分仍算已记录")
+        set_metric("symptoms", 1, str(len(scored_rows)) if scored_rows else "—", "缺失评分不会补成 0")
+        set_metric("up", 0, f"{total_up} 次" if total_up is not None else "—", "只统计人工确认起身")
+        set_metric("up", 1, str(len(up_rows)) if up_rows else "—", "按本地日期统计")
+
+    period.currentIndexChanged.connect(refresh)
+    page.refresh_history = refresh
+    page.finish("数据保留在本机 · 只展示已保存证据，未知区间与缺失症状不会被静默补值")
+    refresh()
     return page
 
 
@@ -530,7 +987,7 @@ def preview_dialog(parent, kind):
     body = QVBoxLayout(dialog)
     body.setContentsMargins(20, 20, 20, 20)
     body.setSpacing(16)
-    body.addWidget(label("腰椎康复助手 · 设计预览", role="section"))
+    body.addWidget(label(f"{APP_NAME} · 设计预览", role="section"))
     body.addWidget(label("仅预览样式 · 不改变计时，不发通知，不记录已读", role="stage"))
     if kind == "startup":
         body.addWidget(label("现在正在坐着吗？", role="title"))
@@ -636,6 +1093,6 @@ def help_page(window):
     return page
 
 
-def build_pages(window, symptom_service=None):
-    return {"record": symptoms_page(symptom_service), "training": training_page(), "chart": statistics_page(),
+def build_pages(window, symptom_service=None, training_service=None, statistics_service=None):
+    return {"record": symptoms_page(symptom_service), "training": training_page(training_service), "chart": statistics_page(statistics_service),
             "settings": settings_page(window), "info": help_page(window)}

@@ -1,4 +1,4 @@
-# Phase 0 架构决策：Windows 腰椎康复助手 V1
+# Phase 0 架构决策：Windows 宇安 V1
 
 > Phase 0 设计基线；Phase 1 骨架实施状态见第 10 节。不代表未实现功能。产品范围与安全约束以根目录 PRD.md 为准。
 
@@ -109,7 +109,7 @@ WAL/同步级别待实机故障测试决定；WAL 不是备份，备份使用 SQ
 
 ## 8. 编码前问题与风险
 
-Phase 1 暂用默认：显示名“腰椎康复助手”、包名 lumbar-rehab-assistant、App ID Local.LumbarRehabAssistant.V1、数据存放 Qt AppLocalDataLocation、重复启动通过本地 IPC 激活既有进程。品牌图标暂缺，使用通用系统图标；最低系统按 PRD 所述 Windows 10/11，目标架构待确认。症状记录粒度尚未实现，建议每日一条可编辑。
+Phase 1 暂用默认：显示名“宇安”、slogan“予慧宇，一份日常的安心”、包名 lumbar-rehab-assistant、App ID Local.LumbarRehabAssistant.V1、数据存放 Qt AppLocalDataLocation、重复启动通过本地 IPC 激活既有进程。包名和 App ID 作为既有技术标识暂不改名。品牌图标暂缺，使用通用系统图标；最低系统按 PRD 所述 Windows 10/11，目标架构待确认。症状记录粒度尚未实现，建议每日一条可编辑。
 
 对应阶段前确认：IDLE 自述一直坐着是否继续触发提醒；40 分钟后间隔与最多次数；时钟跳变容差和追述粒度；医学文案复核责任人；本地备份与删除策略；签名证书状态。
 
@@ -197,3 +197,21 @@ Phase 1 暂用默认：显示名“腰椎康复助手”、包名 lumbar-rehab-a
 - 症状页已接入真实 service：保存成功 / 失败反馈、编辑回填、删除确认、导出确认和固定安全提示。安全规则只根据明确字段触发，不做诊断，不自动推荐训练。
 - 新增领域、service、安全规则和真实 Qt UI 测试。完整自动化测试 `python -m unittest discover -s tests -p '*.py' -v` 为 90/90 通过；`compileall` 和 `git diff --check` 通过。
 - 本阶段未实现 7 / 30 日趋势、训练资料 / 计划、备份恢复和安装交付；专业人员文案复核、真实系统通知、锁屏 / 休眠和目标机验收仍未完成。本记录不将自动化测试扩大解释为真实 Windows 集成验收。
+
+## 18. Phase 4B 专业确认训练基础（2026-10-14）
+
+- SQLite schema 升级到 v5，新增 `exercises`、`exercise_plans` 和 `exercise_logs`。资料保存来源、内容、注意事项、审核人、专业确认时间及 `CANDIDATE / APPROVED / SUSPENDED` 状态；计划仅允许 `APPROVED` 资料进入，资料停用会在同一事务内停止活动计划。
+- 新增 `domain.exercises` 与 `services.exercise_service`。用户可以录入已有专业资料候选、手动填写专业确认标识、加入 / 停止计划并记录完成情况、用户反馈、症状变化和备注；程序不验证专业资质，不内置动作，不自动推荐或自动排程。
+- 训练页接入真实 service。没有真实资料时仍显示设计稿动作占位，但占位不写入数据库、不进入计划；已有资料时显示状态、计划和训练日志入口；出现不适时可停止计划并记录。
+- 新增领域、service、migration 和 Qt UI 测试。完整自动化测试 `python -m unittest discover -s tests -p '*.py' -v` 为 100/100 通过；训练页 Windows Qt 预览生成到 `artifacts/ui-pages-windows-phase4b`；`compileall`、`git diff --check` 通过。
+- 本阶段未实现训练提醒自动排程、真实训练内容、7 / 30 日统计、备份恢复、安装交付和真实锁屏 / 休眠 / 系统通知验收。本记录不将自动化测试或预览扩大解释为专业确认或真实 Windows 集成验收。
+
+## 19. Phase 4C 统计与趋势（2026-10-14）
+
+- 新增 `domain.statistics.DailyStatistics` 和只读 `services.statistics_service.StatisticsService`。统计从既有姿势事件、提醒无关事实和 `symptom_entries` 只读推导，不新增统计数据库表，也不写入查询缓存。
+- 统计范围固定支持最近 7 天和最近 30 天，日期按用户本地时区归属；跨午夜的坐姿区间拆分到对应本地日期。`confirm_up` 才计入起身次数，键鼠活动、空闲和系统环境事件不直接构成坐姿或起身事实。
+- 已确认坐姿、不确定坐姿区间和起身次数分别建模；中断后的区间从中断时间开始计入 `uncertain_sitting_seconds`，不会被 `reconcile_continue_sitting` 伪装成确定坐姿。未闭合当前坐姿不会延伸到当前墙上时间。
+- 缺失日期、没有证据的指标和未填写疼痛评分保持 `None`；明确记录的疼痛 0 分与缺失值区分。统计 UI 不绘制缺失点，不用 0 补齐，也不根据趋势自动声称病情好转。
+- 统计页接入最近 7 天 / 30 天切换、坐姿时长 / 症状变化 / 起身次数三个 Tab、原生 Qt 图表和摘要；首页今日坐姿时长与起身次数读取同一统计 service。空数据库和读取失败均显示明确状态，不生成演示数据。
+- 新增 5 个统计 service 测试和 3 个统计 UI 测试，覆盖跨午夜、未知区间、未闭合区间、缺失值、范围切换、空状态和无写入刷新。本轮全量测试 `python -m unittest discover -s tests -p '*.py' -v` 为 108/108 通过；`compileall` 与 `git diff --check` 通过。
+- Phase 4D 的提醒偏好、恢复询问、更正 UI 和备份管理，以及 Phase 5 的真实 Windows 事件 / 故障恢复和 Phase 6 的安装交付仍未完成。

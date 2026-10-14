@@ -2,6 +2,7 @@
 import logging
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QMenu, QMessageBox
+from rehab_assistant import APP_NAME
 
 
 def build_tray_menu(window, startup_provider, exit_callback):
@@ -69,7 +70,7 @@ def build_tray_menu(window, startup_provider, exit_callback):
     menu.addSeparator()
 
     def confirm_exit():
-        answer = QMessageBox.question(window, "退出腰椎康复助手", "退出后将停止计时和所有提醒。确认退出？",
+        answer = QMessageBox.question(window, f"退出{APP_NAME}", "退出后将停止计时和所有提醒。确认退出？",
                                       QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                                       QMessageBox.StandardButton.No)
         if answer == QMessageBox.StandardButton.Yes:

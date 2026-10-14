@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 
 def migrate(connection: sqlite3.Connection) -> int:
@@ -57,6 +57,40 @@ def migrate(connection: sqlite3.Connection) -> int:
             "notes TEXT NOT NULL, "
             "created_at_utc TEXT NOT NULL, "
             "updated_at_utc TEXT NOT NULL)",
+        ),
+        5: (
+            "CREATE TABLE exercises ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "name TEXT NOT NULL, "
+            "source_url TEXT NOT NULL, "
+            "source_org TEXT NOT NULL, "
+            "content TEXT NOT NULL, "
+            "contraindication_notes TEXT NOT NULL, "
+            "reviewer TEXT, "
+            "approved_at_utc TEXT, "
+            "status TEXT NOT NULL CHECK(status IN ('CANDIDATE', 'APPROVED', 'SUSPENDED')), "
+            "created_at_utc TEXT NOT NULL, "
+            "updated_at_utc TEXT NOT NULL, "
+            "CHECK(status != 'APPROVED' OR (reviewer IS NOT NULL AND reviewer != '' "
+            "AND approved_at_utc IS NOT NULL))"
+            ")",
+            "CREATE TABLE exercise_plans ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "exercise_id INTEGER NOT NULL UNIQUE REFERENCES exercises(id), "
+            "status TEXT NOT NULL CHECK(status IN ('ACTIVE', 'STOPPED')), "
+            "added_at_utc TEXT NOT NULL, "
+            "stopped_at_utc TEXT, "
+            "stop_reason TEXT NOT NULL DEFAULT ''"
+            ")",
+            "CREATE TABLE exercise_logs ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "exercise_id INTEGER NOT NULL REFERENCES exercises(id), "
+            "performed_at_utc TEXT NOT NULL, "
+            "completed INTEGER NOT NULL CHECK(completed IN (0, 1)), "
+            "user_response TEXT NOT NULL, "
+            "symptom_change TEXT NOT NULL, "
+            "notes TEXT NOT NULL"
+            ")",
         ),
     }
     while version < SCHEMA_VERSION:

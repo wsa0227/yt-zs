@@ -8,11 +8,13 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QDialog, QLabel, QPushButton, QSystemTrayIcon, QMessageBox
+from rehab_assistant import APP_NAME
 from rehab_assistant.ui.main_window import MainWindow
 from rehab_assistant.ui.pages import CAPABILITIES, preview_dialog
 from rehab_assistant.ui.tray_menu import build_tray_menu
 from rehab_assistant.services.posture_service import PostureService
 from rehab_assistant.services.reminder_service import ReminderService
+from rehab_assistant.services.statistics_service import StatisticsService
 from rehab_assistant.storage.database import migrate
 from test_ui import FakeClock, SilentChannel
 
@@ -28,8 +30,14 @@ class DesignBoardCoverageTests(unittest.TestCase):
         self.clock = FakeClock()
         self.posture = PostureService(self.connection, self.clock)
         self.reminders = ReminderService(self.connection, self.posture, SilentChannel(), clock=self.clock)
+        self.statistics = StatisticsService(self.connection, clock=self.clock)
         self.tray = QSystemTrayIcon()
-        self.window = MainWindow(self.tray, self.posture, self.reminders)
+        self.window = MainWindow(
+            self.tray,
+            self.posture,
+            self.reminders,
+            statistics_service=self.statistics,
+        )
         self.window._refresh_timer.stop()
         self.window.show()
         self.application.processEvents()
@@ -101,7 +109,8 @@ class DesignBoardCoverageTests(unittest.TestCase):
         self.assertEqual(["坐姿时长", "症状变化", "起身次数"], [page.tab_widget.tabText(i) for i in range(3)])
         metrics = [item.text() for item in page.findChildren(QLabel) if item.property("role") == "metric"]
         self.assertEqual(["—"] * 6, metrics)
-        self.assertIn("统计与趋势", page.status.text())
+        self.assertIn("统计服务已接入", page.status.text())
+        self.assertNotIn("统计服务尚未接入", page.status.text())
 
     def test_all_pages_fit_os_constrained_widths_without_horizontal_scroll(self):
         # Visit all tab panels first: a previously wide hidden row must not
@@ -162,6 +171,7 @@ class DesignBoardCoverageTests(unittest.TestCase):
             self.application.processEvents()
             self.assertTrue(dialog.isVisible())
             self.assertIn("预览", dialog.windowTitle())
+            self.assertIn(APP_NAME, "\n".join(item.text() for item in dialog.findChildren(QLabel)))
             for button in dialog.findChildren(QPushButton):
                 if button.text() != "关闭预览":
                     self.assertFalse(button.isEnabled())
@@ -257,6 +267,7 @@ class DesignBoardCoverageTests(unittest.TestCase):
         _, actions, _, callback = self.menu()
         with patch("rehab_assistant.ui.tray_menu.QMessageBox.question", return_value=QMessageBox.StandardButton.No) as question:
             actions["exit"].trigger()
+            self.assertEqual("退出宇安", question.call_args.args[1])
             self.assertIn("停止计时和所有提醒", question.call_args.args[2])
             callback.assert_not_called()
         with patch("rehab_assistant.ui.tray_menu.QMessageBox.question", return_value=QMessageBox.StandardButton.Yes):

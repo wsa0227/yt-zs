@@ -1,0 +1,177 @@
+{
+  "meta": {
+    "name": "宇安｜康复资料与记录包",
+    "version": "1.0-draft",
+    "created_on": "2026-10-14",
+    "patient_context": "慧宇；用户称发病时间较短、影像提示神经根受压、连续坐姿上限40分钟，尚无具体训练动作医嘱。未核实病历。",
+    "purpose": "候选资料整理，不是个人训练处方",
+    "approved_exercise_count": 0,
+    "active_plan_count": 0,
+    "seed_policy": "INITIAL_APP_CATALOGUE_EMPTY; USER_INITIATED_CANDIDATE_IMPORT_ONLY",
+    "original_media_files_included": false,
+    "scope_note": "手工计划与详细日志字段是增补建议，未修改代码或执行迁移。",
+    "research_note": "沿用本对话前序资料检索；重新打包，不声称本次完成视频播放或临床审核。"
+  },
+  "individual_approval": {
+    "record_type": "INDIVIDUAL_APPROVAL_TEMPLATE",
+    "id": null,
+    "patient_local_id": null,
+    "exercise_id": null,
+    "exercise_content_version": null,
+    "decision": "NOT_REVIEWED",
+    "reviewed_on": null,
+    "professional": {
+      "name": null,
+      "role": null,
+      "institution": null,
+      "identity_verified_by_app": false
+    },
+    "recording": {
+      "recorded_by": null,
+      "recorded_at_utc": null,
+      "basis_type": null,
+      "basis_local_reference": null
+    },
+    "approved_variant": null,
+    "clinician_steps": null,
+    "prescription": {
+      "dose_mode": null,
+      "sets": null,
+      "repetitions_per_set": null,
+      "hold_seconds": null,
+      "duration_minutes": null,
+      "rest_seconds": null,
+      "frequency_text": null,
+      "range_or_position": null,
+      "assistance": null,
+      "allowed_symptom_response": null,
+      "stop_criteria": null,
+      "review_due_on": null,
+      "not_applicable_fields": []
+    },
+    "media_review": {
+      "image_ids": [],
+      "video_id": null,
+      "content_version_or_hash": null,
+      "segment_start_seconds": null,
+      "segment_end_seconds": null,
+      "language_understood": null,
+      "matching_demonstration_confirmed": null
+    },
+    "valid_from": null,
+    "valid_until": null,
+    "suspended_at_utc": null,
+    "suspension_reason": null,
+    "supersedes_review_id": null
+  },
+  "training_plan": {
+    "record_type": "TRAINING_PLAN_TEMPLATE",
+    "id": null,
+    "version": 1,
+    "patient_local_id": null,
+    "title": null,
+    "status": "DRAFT",
+    "clinical_goal": null,
+    "start_on": null,
+    "end_on": null,
+    "review_due_on": null,
+    "overall_plan_confirmation_basis": null,
+    "items": [],
+    "item_template": {
+      "order": null,
+      "exercise_id": null,
+      "exercise_content_version": null,
+      "approval_id": null,
+      "approved_prescription_snapshot": null,
+      "manual_day_or_window": null
+    },
+    "automatic_recommendation_enabled": false,
+    "automatic_scheduling_enabled": false,
+    "training_reminders_enabled": false,
+    "progression_policy": "MANUAL_CLINICAL_REVIEW_ONLY"
+  },
+  "training_log": {
+    "record_type": "TRAINING_LOG_TEMPLATE",
+    "id": null,
+    "patient_local_id": null,
+    "kind": null,
+    "plan_id": null,
+    "plan_version": null,
+    "exercise_id": null,
+    "exercise_content_version": null,
+    "approval_id": null,
+    "approval_snapshot": null,
+    "status": "NOT_STARTED",
+    "performed_at_utc": null,
+    "local_date": null,
+    "timezone_id": null,
+    "entered_at_utc": null,
+    "time_source": null,
+    "actual_duration_seconds": null,
+    "actual_sets": null,
+    "actual_repetitions": null,
+    "prescribed_dose_snapshot": null,
+    "completion_confirmed_by_user": false,
+    "symptoms_before": {
+      "back_pain_0_to_10": null,
+      "leg_pain_0_to_10": null,
+      "location": null,
+      "side": null,
+      "numbness_change": null,
+      "weakness_change": null,
+      "radiation_change": null,
+      "notes": null
+    },
+    "symptoms_during": {
+      "back_pain_0_to_10": null,
+      "leg_pain_0_to_10": null,
+      "location": null,
+      "side": null,
+      "numbness_change": null,
+      "weakness_change": null,
+      "radiation_change": null,
+      "notes": null
+    },
+    "symptoms_after": {
+      "back_pain_0_to_10": null,
+      "leg_pain_0_to_10": null,
+      "location": null,
+      "side": null,
+      "numbness_change": null,
+      "weakness_change": null,
+      "radiation_change": null,
+      "notes": null
+    },
+    "delayed_followup": {
+      "observation_at_utc": null,
+      "timepoint_label": null,
+      "symptoms": {
+        "back_pain_0_to_10": null,
+        "leg_pain_0_to_10": null,
+        "location": null,
+        "side": null,
+        "numbness_change": null,
+        "weakness_change": null,
+        "radiation_change": null,
+        "notes": null
+      }
+    },
+    "stop_or_skip_reason": null,
+    "safety_flags_reported": null,
+    "user_reported_action_after_notice": null,
+    "notes": null,
+    "corrects_log_id": null
+  },
+  "safety_copy_draft": {
+    "status": "REQUIRES_CLINICAL_REVIEW_BEFORE_RELEASE",
+    "source_ids": [
+      "S01",
+      "S09",
+      "S13"
+    ],
+    "emergency_notice": "若出现新发会阴或肛周麻木、排尿困难或尿潴留、大小便控制异常等，请停止训练并立即到急诊评估。症状严重或无法安全出行时联系当地急救服务，不要等待软件再次提醒。",
+    "urgent_notice": "新发或进行性腿部无力、明显加重的麻木或放射痛，应暂停相关训练并尽快联系医生；严重或快速加重时急诊评估。",
+    "general_stop_notice": "训练引起疼痛明显加重、头晕或其他不适时，先停止并记录，再根据医嘱联系专业人员。",
+    "note": "不是完整分诊工具；没有报告警示症状不等于安全；不得设置通用疼痛分值自动放行。"
+  }
+}
