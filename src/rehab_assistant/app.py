@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -30,9 +32,23 @@ from rehab_assistant.ui.tray_menu import build_tray_menu
 
 
 def data_directory() -> Path:
+    # Used only by isolated packaging smoke tests; normal installs follow Qt's
+    # per-user local application-data location.
+    override = os.environ.get("REHAB_ASSISTANT_DATA_DIR")
+    if override:
+        return Path(override)
     return Path(QStandardPaths.writableLocation(
         QStandardPaths.StandardLocation.AppLocalDataLocation
     ))
+
+
+def instance_server_name(directory: Path) -> str:
+    """Keep packaging smoke-test IPC separate from the user's running app."""
+    if not os.environ.get("REHAB_ASSISTANT_DATA_DIR"):
+        return APP_ID
+    normalized = os.path.normcase(str(directory.resolve()))
+    digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:24]
+    return f"{APP_ID}-isolated-{digest}"
 
 
 def configure_logging(directory: Path) -> None:
@@ -87,11 +103,12 @@ def main() -> int:
         print(f"无法创建应用数据目录：{directory}；{error}", file=sys.stderr)
         return 1
 
+    server_name = instance_server_name(directory)
     lock = QLockFile(str(directory / "app.lock"))
     lock.setStaleLockTime(0)
     if not lock.tryLock(0):
         if lock.error() == QLockFile.LockError.LockFailedError:
-            if _notify_existing_instance(APP_ID):
+            if _notify_existing_instance(server_name):
                 return 0
             pid, hostname, process_name = lock.getLockInfo()
             print(
@@ -158,8 +175,8 @@ def main() -> int:
     )
 
     server = QLocalServer(app)
-    QLocalServer.removeServer(APP_ID)
-    if not server.listen(APP_ID):
+    QLocalServer.removeServer(server_name)
+    if not server.listen(server_name):
         log.error("Could not listen for single-instance activation: %s", server.errorString())
     else:
         def activate_existing() -> None:

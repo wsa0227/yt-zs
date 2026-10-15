@@ -9,6 +9,9 @@ description = "Windows desktop application framework for the lumbar rehabilitati
 requires-python = ">=3.12,<3.13"
 dependencies = ["PySide6==6.8.3"]
 
+[project.optional-dependencies]
+packaging = ["PyInstaller==6.11.1"]
+
 [project.scripts]
 rehab-assistant = "rehab_assistant.app:main"
 

@@ -38,4 +38,56 @@ cd C:\workspase\python-project\yt-zs
 .\.venv\Scripts\python.exe tools/render_ui_preview.py --platform windows --output-dir artifacts/ui-pages-windows
 ```
 
-预览使用内存 SQLite 和固定测试时钟，不读写实际健康数据，也不发送系统通知。本轮全量自动化测试 `134/134` 通过；详细覆盖、缩放结果和未验收事项见 `docs/UI_COVERAGE.md`。页面占位不等于业务完成。本轮未生成安装包。
+预览使用内存 SQLite 和固定测试时钟，不读写实际健康数据，也不发送系统通知。2026-10-15 全量自动化测试 `151/151` 通过；详细覆盖、缩放结果和未验收事项见 `docs/UI_COVERAGE.md`。页面占位不等于业务完成。本轮已生成 EXE 与安装包；安装行为仍待目标机验收。
+
+## Windows 打包与验证
+
+固定打包依赖已声明为 `packaging` 可选依赖（PyInstaller 6.11.1），可使用现有的 uv 安装：
+
+```powershell
+uv pip install --python .\.venv\Scripts\python.exe -e ".[packaging]"
+```
+
+构建入口支持从 PATH、当前用户安装目录或常见系统目录查找 Inno Setup 6；也可通过 `-IsccPath` 指定编译器。
+
+检查当前机器是否具备完整打包条件（包括 Inno Setup 编译器）：
+
+```powershell
+.\.venv\Scripts\python.exe tools\preflight_windows_package.py
+```
+
+预检通过后，使用 `tools\build_windows_package.ps1` 生成 `dist\LumbarRehabAssistant.exe`，并继续生成 `dist\installer\YuAn-Setup-0.1.0.exe` 安装包：
+
+```powershell
+.\tools\build_windows_package.ps1
+```
+
+只构建 EXE、不编译安装包（不要求 Inno Setup）：
+
+```powershell
+.\tools\build_windows_package.ps1 -SkipInstaller
+```
+
+2026-10-15 已通过正式构建入口生成单文件 EXE，并完成本机 Windows 可见主窗口 / 隔离数据库启动烟测。可直接运行：
+
+```powershell
+.\dist\LumbarRehabAssistant.exe
+```
+
+自动启动烟测命令：
+
+```powershell
+.\.venv\Scripts\python.exe tools\smoke_frozen_exe.py
+```
+
+烟测使用独立临时数据和独立单实例通信名称，验证后强制清理本次测试进程；此项不等同于托盘正常退出验收。关闭窗口默认隐藏到托盘，日常退出使用托盘菜单。
+
+2026-10-15 已使用 Inno Setup 6.7.3 实际编译生成安装包。手动试装入口：
+
+```powershell
+.\dist\installer\YuAn-Setup-0.1.0.exe
+```
+
+当前安装目标限制为 Windows 10/11 原生 x64；预检拒绝 32 位 Python 和 ARM64 构建机。安装配置使用当前用户权限和 `%LOCALAPPDATA%\Programs\YuAn`，卸载保留健康数据。以上安装行为仍需实机验证，不能由编译成功推断通过。安装器尚未签名，目前使用 Inno 默认安装向导语言；自定义任务文案与应用界面为中文。
+
+安装 / 升级 / 卸载、登录启动清理、无 Python 目标机启动、冻结版页面资源逐页检查和真实锁屏 / 休眠 / 通知抑制仍待验收。具体步骤见 `docs/WINDOWS_ACCEPTANCE.md`，实际结果和 SHA-256 见 `docs/TEST_REPORT.md`。

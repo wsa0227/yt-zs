@@ -23,6 +23,19 @@ class WindowLifecycleTests(unittest.TestCase):
     def setUpClass(cls):
         cls.application = QApplication.instance() or QApplication([])
 
+    def test_default_instance_server_name_stays_compatible(self):
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(app_module.APP_ID, app_module.instance_server_name(Path("unused")))
+
+    def test_smoke_data_directories_have_isolated_stable_ipc_names(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            with patch.dict(os.environ, {"REHAB_ASSISTANT_DATA_DIR": str(root)}):
+                first = app_module.instance_server_name(root)
+                self.assertNotEqual(app_module.APP_ID, first)
+                self.assertEqual(first, app_module.instance_server_name(root / "child" / ".."))
+                self.assertNotEqual(first, app_module.instance_server_name(root / "second"))
+
     def test_close_hides_window_when_tray_is_active(self):
         tray = QSystemTrayIcon()
         tray.show()
